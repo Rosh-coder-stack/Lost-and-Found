@@ -1,0 +1,6 @@
+{
+  "name": "Campus Lost & Found",
+  "description": "The official university portal to report lost items or browse found valuables. Efficient, reliable, and central to campus life.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
