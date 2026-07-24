@@ -21,9 +21,8 @@ export default function LandingScreen({ onNavigate, onOpenReport, onOpenBrowse }
             </div>
 
             <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-4xl sm:text-5xl lg:text-[48px] font-bold text-[#e5e1e4] leading-[1.1] tracking-tight">
-              Lost something? <br />
               <span className="bg-gradient-to-r from-[#d2bbff] to-[#ffb0cd] bg-clip-text text-transparent">
-                Let's help you find it.
+                Help You Find what you Love!
               </span>
             </h1>
 
