@@ -96,8 +96,8 @@ export default function App() {
         {currentScreen === 'landing' && (
           <LandingScreen
             onNavigate={handleNavigate}
-            onOpenReport={() => setIsReportModalOpen(true)}
-            onOpenBrowse={() => setIsBrowseModalOpen(true)}
+            onOpenReport={() => handleNavigate('login')}
+            onOpenBrowse={() => handleNavigate('login')}
           />
         )}
 
