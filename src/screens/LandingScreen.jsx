@@ -27,7 +27,7 @@ export default function LandingScreen({ onNavigate, onOpenReport, onOpenBrowse }
             </h1>
 
             <p className="font-['Inter'] text-base md:text-lg text-[#A1A1AA] max-w-xl leading-relaxed">
-              The world's most advanced lost and found network. Powered by smart matching and a global community to reunite you with your belongings faster than ever.
+              Lost and found network. Powered by smart matching and a global community to reunite you with your belongings faster than ever.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mt-2">
