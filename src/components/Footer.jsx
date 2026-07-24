@@ -10,7 +10,7 @@ export default function Footer({ onNavigate }) {
             FoundIt
           </div>
           <p className="text-[#ccc3d8] text-sm leading-relaxed">
-            Making the world a little smaller, one found item at a time. The world's leading premium lost and found platform.
+            Making the world a little smaller, one found item at a time. 
           </p>
           <div className="flex gap-4">
             <a 
