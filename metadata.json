@@ -1,6 +1,6 @@
 {
-  "name": "Campus Lost & Found",
-  "description": "The official university portal to report lost items or browse found valuables. Efficient, reliable, and central to campus life.",
+  "name": "FoundIt - Lost & Found Platform",
+  "description": "A premium, AI-assisted lost and found network helping users report, browse, match, and recover lost belongings.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

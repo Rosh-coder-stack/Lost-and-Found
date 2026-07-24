@@ -1,0 +1,165 @@
+import React, { useState } from 'react';
+import Navbar from './components/Navbar.jsx';
+import Footer from './components/Footer.jsx';
+import ReportModal from './components/ReportModal.jsx';
+import BrowseModal from './components/BrowseModal.jsx';
+import ItemDetailsModal from './components/ItemDetailsModal.jsx';
+import SuccessStoriesModal from './components/SuccessStoriesModal.jsx';
+
+import LandingScreen from './screens/LandingScreen.jsx';
+import DashboardScreen from './screens/DashboardScreen.jsx';
+import SignUpScreen from './screens/SignUpScreen.jsx';
+import LoginScreen from './screens/LoginScreen.jsx';
+
+import { INITIAL_USER_REPORTS, SUGGESTED_ITEMS, GLOBAL_DATABASE_ITEMS } from './data/mockData.js';
+
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState('landing');
+  const [user, setUser] = useState({ name: 'Alex Miller', email: 'alex.miller@example.com' });
+
+  // Data states
+  const [userReports, setUserReports] = useState(INITIAL_USER_REPORTS);
+  const [suggestedItems] = useState(SUGGESTED_ITEMS);
+  const [globalItems, setGlobalItems] = useState([...GLOBAL_DATABASE_ITEMS, ...INITIAL_USER_REPORTS]);
+
+  // Modal states
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
+  const [isStoriesModalOpen, setIsStoriesModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Toast Notification
+  const [toastMsg, setToastMsg] = useState(null);
+
+  const showToast = (message) => {
+    setToastMsg(message);
+    setTimeout(() => {
+      setToastMsg(null);
+    }, 3000);
+  };
+
+  const handleNavigate = (screen) => {
+    setCurrentScreen(screen);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNewReport = (newReport) => {
+    setUserReports([newReport, ...userReports]);
+    setGlobalItems([newReport, ...globalItems]);
+    showToast(`Report published for "${newReport.title}"`);
+  };
+
+  const handleClaimItem = (item, proofMessage) => {
+    showToast(`Claim verification submitted for "${item.title}"`);
+    setSelectedItem(null);
+  };
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    showToast(`Welcome back, ${userData.name}!`);
+    handleNavigate('dashboard');
+  };
+
+  const handleSignUpSuccess = (userData) => {
+    setUser(userData);
+    showToast(`Account created for ${userData.name}!`);
+    handleNavigate('dashboard');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    showToast('Logged out successfully.');
+    handleNavigate('landing');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#09090B] text-[#e5e1e4] flex flex-col font-['Inter',sans-serif] selection:bg-[#7C3AED] selection:text-white">
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div className="fixed top-24 right-6 z-50 bg-[#7C3AED] text-white font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 animate-in slide-in-from-top duration-300">
+          <span className="material-symbols-outlined text-lg">check_circle</span>
+          <span className="text-sm">{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Top Fixed Navbar */}
+      <Navbar
+        currentScreen={currentScreen}
+        onNavigate={handleNavigate}
+        user={user}
+        onLogout={handleLogout}
+        onOpenReport={() => setIsReportModalOpen(true)}
+      />
+
+      {/* Main Screen Body */}
+      <div className="flex-1">
+        {currentScreen === 'landing' && (
+          <LandingScreen
+            onNavigate={handleNavigate}
+            onOpenReport={() => handleNavigate('login')}
+            onOpenBrowse={() => handleNavigate('login')}
+          />
+        )}
+
+        {currentScreen === 'dashboard' && (
+          <DashboardScreen
+            user={user}
+            userReports={userReports}
+            suggestedItems={suggestedItems}
+            onOpenReport={() => setIsReportModalOpen(true)}
+            onOpenBrowse={() => setIsBrowseModalOpen(true)}
+            onSelectItem={(item) => setSelectedItem(item)}
+            onOpenStories={() => setIsStoriesModalOpen(true)}
+          />
+        )}
+
+        {currentScreen === 'signup' && (
+          <SignUpScreen
+            onNavigate={handleNavigate}
+            onSignUpSuccess={handleSignUpSuccess}
+          />
+        )}
+
+        {currentScreen === 'login' && (
+          <LoginScreen
+            onNavigate={handleNavigate}
+            onLoginSuccess={handleLoginSuccess}
+          />
+        )}
+      </div>
+
+      {/* Global Footer (shown on landing and dashboard) */}
+      {(currentScreen === 'landing' || currentScreen === 'dashboard') && (
+        <Footer onNavigate={handleNavigate} />
+      )}
+
+      {/* Modals */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        onSubmitReport={handleNewReport}
+      />
+
+      <BrowseModal
+        isOpen={isBrowseModalOpen}
+        onClose={() => setIsBrowseModalOpen(false)}
+        items={globalItems}
+        onSelectItem={(item) => {
+          setIsBrowseModalOpen(false);
+          setSelectedItem(item);
+        }}
+      />
+
+      <ItemDetailsModal
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onClaimItem={handleClaimItem}
+      />
+
+      <SuccessStoriesModal
+        isOpen={isStoriesModalOpen}
+        onClose={() => setIsStoriesModalOpen(false)}
+      />
+    </div>
+  );
+}
