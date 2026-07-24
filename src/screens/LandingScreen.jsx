@@ -158,7 +158,7 @@ export default function LandingScreen({ onNavigate, onOpenReport, onOpenBrowse }
 
             {/* Feature 3 */}
             <div 
-              onClick={() => onNavigate('signup')}
+              onClick={() => onNavigate('login')}
               className="glass-card p-8 rounded-3xl group cursor-pointer hover:border-[#ffb784] transition-all"
             >
               <div className="w-14 h-14 rounded-2xl bg-[#ffb784]/10 flex items-center justify-center text-[#ffb784] mb-6 group-hover:bg-[#ffb784] group-hover:text-black transition-all duration-300">
@@ -292,7 +292,7 @@ export default function LandingScreen({ onNavigate, onOpenReport, onOpenBrowse }
                   Get Started for Free
                 </button>
                 <button
-                  onClick={() => onNavigate('dashboard')}
+                  onClick={() => onNavigate('login')}
                   className="px-10 py-4 rounded-2xl border-2 border-white/30 text-white font-bold text-base hover:bg-white/10 transition-all cursor-pointer"
                 >
                   Contact Support
