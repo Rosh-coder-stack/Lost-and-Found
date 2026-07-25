@@ -1,7 +1,7 @@
 import React from 'react';
 import { IMAGES } from '../data/mockData';
 
-export default function LandingScreen({ onNavigate, onOpenReport, onOpenBrowse }) {
+export default function LandingPage({ onNavigate, onOpenReport, onOpenBrowse }) {
   return (
     <div className="pt-24 pb-20">
       {/* Hero Section */}
