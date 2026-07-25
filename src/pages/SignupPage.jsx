@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function SignUpScreen({ onNavigate, onSignUpSuccess }) {
+export default function SignupPage({ onNavigate, onSignUpSuccess }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

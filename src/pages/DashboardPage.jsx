@@ -1,7 +1,7 @@
 import React from 'react';
 import { IMAGES } from '../data/mockData';
 
-export default function DashboardScreen({ 
+export default function DashboardPage({ 
   userReports, 
   suggestedItems, 
   onOpenReport, 

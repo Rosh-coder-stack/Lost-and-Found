@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function LoginScreen({ onNavigate, onLoginSuccess }) {
+export default function LoginPage({ onNavigate, onLoginSuccess }) {
   const [email, setEmail] = useState('alex.miller@example.com');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);

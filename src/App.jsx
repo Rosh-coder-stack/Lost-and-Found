@@ -6,10 +6,10 @@ import BrowseModal from './components/BrowseModal.jsx';
 import ItemDetailsModal from './components/ItemDetailsModal.jsx';
 import SuccessStoriesModal from './components/SuccessStoriesModal.jsx';
 
-import LandingScreen from './screens/LandingScreen.jsx';
-import DashboardScreen from './screens/DashboardScreen.jsx';
-import SignUpScreen from './screens/SignUpScreen.jsx';
-import LoginScreen from './screens/LoginScreen.jsx';
+import LandingPage from './pages/LandingPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import SignupPage from './pages/SignupPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 
 import { INITIAL_USER_REPORTS, SUGGESTED_ITEMS, GLOBAL_DATABASE_ITEMS } from './data/mockData.js';
 
@@ -94,7 +94,7 @@ export default function App() {
       {/* Main Screen Body */}
       <div className="flex-1">
         {currentScreen === 'landing' && (
-          <LandingScreen
+          <LandingPage
             onNavigate={handleNavigate}
             onOpenReport={() => handleNavigate('login')}
             onOpenBrowse={() => handleNavigate('login')}
@@ -102,7 +102,7 @@ export default function App() {
         )}
 
         {currentScreen === 'dashboard' && (
-          <DashboardScreen
+          <DashboardPage
             user={user}
             userReports={userReports}
             suggestedItems={suggestedItems}
@@ -114,14 +114,14 @@ export default function App() {
         )}
 
         {currentScreen === 'signup' && (
-          <SignUpScreen
+          <SignupPage
             onNavigate={handleNavigate}
             onSignUpSuccess={handleSignUpSuccess}
           />
         )}
 
         {currentScreen === 'login' && (
-          <LoginScreen
+          <LoginPage
             onNavigate={handleNavigate}
             onLoginSuccess={handleLoginSuccess}
           />
