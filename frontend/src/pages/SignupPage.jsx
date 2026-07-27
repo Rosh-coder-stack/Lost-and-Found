@@ -9,10 +9,14 @@ export default function SignupPage({ onNavigate, onSignUpSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName || !email || !password) {
       setErrorMsg('Please fill in all required fields.');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
       return;
     }
     if (password !== confirmPassword) {
@@ -27,10 +31,32 @@ export default function SignupPage({ onNavigate, onSignUpSuccess }) {
     setErrorMsg('');
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    try {
+      const authApiUrl = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001/api/v1/auth';
+      const response = await fetch(`${authApiUrl}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Registration failed.');
+      }
+
       setIsSubmitting(false);
-      onSignUpSuccess({ name: fullName, email });
-    }, 1200);
+      onSignUpSuccess(data.user || { name: fullName, email });
+    } catch (err) {
+      setIsSubmitting(false);
+      setErrorMsg(err.message || 'Failed to connect to authentication server.');
+    }
   };
 
   return (
