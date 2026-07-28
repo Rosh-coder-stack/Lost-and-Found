@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loginUser } from '../services/authService.js';
 
 export default function LoginPage({ onNavigate, onLoginSuccess }) {
   const [email, setEmail] = useState('alex.miller@example.com');
@@ -8,23 +9,47 @@ export default function LoginPage({ onNavigate, onLoginSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  // Handle Login form submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
+
+    // Step 1: Input Validation - Check that both email and password are provided
+    if (!email.trim() || !password) {
       setErrorMsg('Please enter both email and password.');
       return;
     }
 
+    // Step 2: Clear any previous error and enable loading state (disables submit button)
     setErrorMsg('');
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    try {
+      // Step 3: Call backend API endpoint POST http://localhost:5001/api/v1/auth/login via authService
+      const responseData = await loginUser(email, password);
+
+      // Step 4: On successful login:
+      // Store JWT token in localStorage under key 'token'
+      if (responseData.token) {
+        localStorage.setItem('token', responseData.token);
+      }
+
+      // Store user object in localStorage under key 'user'
+      if (responseData.user) {
+        localStorage.setItem('user', JSON.stringify(responseData.user));
+      }
+
+      // Step 5: Trigger success callback to update app state and redirect to Dashboard/Home page
+      onLoginSuccess(responseData.user);
+    } catch (err) {
+      // Step 6: On login failure:
+      // Display the error message returned by the backend (401 Invalid credentials, 404 User not found, 400 Validation error, or Network error)
+      setErrorMsg(err.message || 'Login failed. Please try again.');
+      
+      // Note: Form inputs (email and password) remain preserved in state without being cleared
+    } finally {
+      // Step 7: Reset submitting state to re-enable button
       setIsSubmitting(false);
-      onLoginSuccess({ 
-        name: email.includes('alex') ? 'Alex Miller' : email.split('@')[0], 
-        email 
-      });
-    }, 1000);
+    }
   };
 
   return (
@@ -197,3 +222,4 @@ export default function LoginPage({ onNavigate, onLoginSuccess }) {
     </div>
   );
 }
+

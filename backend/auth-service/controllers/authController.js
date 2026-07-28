@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 /**
@@ -64,6 +65,7 @@ const register = async (req, res) => {
 			message: 'User registered successfully',
 			user: {
 				_id: user._id,
+				id: user._id,
 				name: user.name,
 				email: user.email,
 				role: user.role,
@@ -80,6 +82,87 @@ const register = async (req, res) => {
 	}
 };
 
+/**
+ * @desc    Authenticate user & get token (Login)
+ * @route   POST /api/v1/auth/login
+ * @access  Public
+ */
+const login = async (req, res) => {
+	try {
+		// Step 1: Extract email and password from the incoming request body
+		const { email, password } = req.body;
+
+		// Step 2: Validate that both required fields (email and password) are provided
+		if (!email || !password) {
+			return res.status(400).json({
+				success: false,
+				message: 'Please provide both email and password',
+			});
+		}
+
+		// Normalize email to lowercase and trim extra spaces for consistent database lookup
+		const normalizedEmail = email.toLowerCase().trim();
+
+		// Step 3: Find the user in MongoDB by their email address
+		const user = await User.findOne({ email: normalizedEmail });
+
+		// Step 4: Check if user exists. If not found, return a 404 Not Found response
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found',
+			});
+		}
+
+		// Step 5: Compare the provided plain text password with the stored hashed password using bcrypt.compare()
+		const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+		// Step 6: If password does not match, return a 401 Unauthorized response
+		if (!isPasswordMatch) {
+			return res.status(401).json({
+				success: false,
+				message: 'Invalid credentials',
+			});
+		}
+
+		// Step 7: Generate a JWT token using jsonwebtoken
+		// Payload includes user's _id and role
+		const payload = {
+			_id: user._id,
+			id: user._id,
+			role: user.role,
+		};
+
+		// Sign token using JWT_SECRET from process.env, set to expire in 1 day ('1d')
+		const token = jwt.sign(payload, process.env.JWT_SECRET, {
+			expiresIn: '1d',
+		});
+
+		// Step 8: Return a JSON response containing success message, JWT token, and basic user information
+		return res.status(200).json({
+			success: true,
+			message: 'Login successful',
+			token,
+			user: {
+				id: user._id,
+				_id: user._id,
+				name: user.name,
+				email: user.email,
+				role: user.role,
+			},
+		});
+	} catch (error) {
+		console.error(`Login Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error occurred during login',
+			error: error.message,
+		});
+	}
+};
+
 module.exports = {
 	register,
+	login,
 };
+
