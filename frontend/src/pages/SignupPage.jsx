@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { registerUser } from '../services/authService.js';
 
 export default function SignupPage({ onNavigate, onSignUpSuccess }) {
   const [fullName, setFullName] = useState('');
@@ -32,30 +33,25 @@ export default function SignupPage({ onNavigate, onSignUpSuccess }) {
     setIsSubmitting(true);
 
     try {
-      const authApiUrl = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001/api/v1/auth';
-      const response = await fetch(`${authApiUrl}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: fullName,
-          email,
-          password,
-        }),
+      const responseData = await registerUser({
+        name: fullName,
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Registration failed.');
+      if (responseData.token) {
+        localStorage.setItem('token', responseData.token);
       }
 
-      setIsSubmitting(false);
-      onSignUpSuccess(data.user || { name: fullName, email });
+      if (responseData.user) {
+        localStorage.setItem('user', JSON.stringify(responseData.user));
+      }
+
+      onSignUpSuccess(responseData.user || { name: fullName, email });
     } catch (err) {
-      setIsSubmitting(false);
       setErrorMsg(err.message || 'Failed to connect to authentication server.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
