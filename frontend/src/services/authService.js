@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Define the base URL for the Auth Service API
-const API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001/api/v1/auth';
+// Define the base URL for the API Gateway auth route
+const API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api/v1/auth';
 
 /**
  * Service function to authenticate a user by sending email and password to the backend API.
