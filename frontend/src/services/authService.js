@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Define the base URL for the Auth Service API
-const API_URL = 'http://localhost:5001/api/v1/auth';
+const API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001/api/v1/auth';
 
 /**
  * Service function to authenticate a user by sending email and password to the backend API.
@@ -31,6 +31,35 @@ export const loginUser = async (email, password) => {
       throw new Error('Unable to connect to the authentication server. Please ensure the backend is running.');
     } else {
       // General error during setup
+      throw new Error(error.message || 'An unexpected error occurred');
+    }
+  }
+};
+
+/**
+ * Service function to register a new user.
+ *
+ * @param {Object} userData - The user registration data
+ * @param {string} userData.name - The user's full name
+ * @param {string} userData.email - The user's email address
+ * @param {string} userData.password - The user's password
+ * @returns {Promise<Object>} The response data containing token, user info, and message
+ */
+export const registerUser = async ({ name, email, password }) => {
+  try {
+    const response = await axios.post(`${API_URL}/register`, {
+      name,
+      email,
+      password,
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.message || 'Registration failed');
+    } else if (error.request) {
+      throw new Error('Unable to connect to the authentication server. Please ensure the backend is running.');
+    } else {
       throw new Error(error.message || 'An unexpected error occurred');
     }
   }
