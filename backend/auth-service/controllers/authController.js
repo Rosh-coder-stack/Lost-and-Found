@@ -128,7 +128,6 @@ const login = async (req, res) => {
 		// Step 7: Generate a JWT token using jsonwebtoken
 		// Payload includes user's _id and role
 		const payload = {
-			_id: user._id,
 			id: user._id,
 			role: user.role,
 		};
