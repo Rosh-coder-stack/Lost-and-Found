@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import ReportModal from './components/ReportModal.jsx';
@@ -10,12 +10,22 @@ import LandingPage from './pages/LandingPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 
 import { INITIAL_USER_REPORTS, SUGGESTED_ITEMS, GLOBAL_DATABASE_ITEMS } from './data/mockData.js';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('landing');
   const [user, setUser] = useState({ name: 'Alex Miller', email: 'alex.miller@example.com' });
+
+  // Auto-detect reset password token in URL on load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('token') || window.location.pathname.includes('reset-password')) {
+      setCurrentScreen('reset-password');
+    }
+  }, []);
 
   // Data states
   const [userReports, setUserReports] = useState(INITIAL_USER_REPORTS);
@@ -124,6 +134,19 @@ export default function App() {
           <LoginPage
             onNavigate={handleNavigate}
             onLoginSuccess={handleLoginSuccess}
+          />
+        )}
+
+        {currentScreen === 'forgot-password' && (
+          <ForgotPasswordPage
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {currentScreen === 'reset-password' && (
+          <ResetPasswordPage
+            onNavigate={handleNavigate}
+            showToast={showToast}
           />
         )}
       </div>
