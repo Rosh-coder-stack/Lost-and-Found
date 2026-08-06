@@ -64,3 +64,50 @@ export const registerUser = async ({ name, email, password }) => {
     }
   }
 };
+
+/**
+ * Service function to request a password reset email.
+ *
+ * @param {string} email - The user's email address
+ * @returns {Promise<Object>} The response data message
+ */
+export const forgotPasswordUser = async (email) => {
+  try {
+    const response = await axios.post(`${API_URL}/forgot-password`, { email });
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.message || 'Forgot password request failed');
+    } else if (error.request) {
+      throw new Error('Unable to connect to the authentication server. Please ensure the backend is running.');
+    } else {
+      throw new Error(error.message || 'An unexpected error occurred');
+    }
+  }
+};
+
+/**
+ * Service function to reset a user's password using a token.
+ *
+ * @param {string} token - The password reset token
+ * @param {string} newPassword - The user's new password
+ * @returns {Promise<Object>} The response data message
+ */
+export const resetPasswordUser = async (token, newPassword) => {
+  try {
+    const response = await axios.post(`${API_URL}/reset-password`, {
+      token,
+      newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.message || 'Reset password request failed');
+    } else if (error.request) {
+      throw new Error('Unable to connect to the authentication server. Please ensure the backend is running.');
+    } else {
+      throw new Error(error.message || 'An unexpected error occurred');
+    }
+  }
+};
+

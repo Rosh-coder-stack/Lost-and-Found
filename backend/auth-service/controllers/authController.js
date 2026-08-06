@@ -1,6 +1,21 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { sendPasswordResetEmail } = require('../services/emailService');
+
+const generateToken = (user) => {
+	return jwt.sign(
+		{
+			id: user._id,
+			role: user.role,
+		},
+		process.env.JWT_SECRET,
+		{
+			expiresIn: '1d',
+		}
+	);
+};
 
 /**
  * @desc    Register a new user
@@ -60,9 +75,12 @@ const register = async (req, res) => {
 		});
 
 		// 5. Return Clean JSON Response
+		const token = generateToken(user);
+
 		return res.status(201).json({
 			success: true,
 			message: 'User registered successfully',
+			token,
 			user: {
 				_id: user._id,
 				id: user._id,
@@ -126,16 +144,7 @@ const login = async (req, res) => {
 		}
 
 		// Step 7: Generate a JWT token using jsonwebtoken
-		// Payload includes user's _id and role
-		const payload = {
-			id: user._id,
-			role: user.role,
-		};
-
-		// Sign token using JWT_SECRET from process.env, set to expire in 1 day ('1d')
-		const token = jwt.sign(payload, process.env.JWT_SECRET, {
-			expiresIn: '1d',
-		});
+		const token = generateToken(user);
 
 		// Step 8: Return a JSON response containing success message, JWT token, and basic user information
 		return res.status(200).json({
@@ -160,8 +169,144 @@ const login = async (req, res) => {
 	}
 };
 
+/**
+ * @desc    Forgot Password - Send reset link to user's email
+ * @route   POST /api/v1/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = async (req, res) => {
+	try {
+		const { email } = req.body;
+
+		// 1. Validate email input
+		if (!email) {
+			return res.status(400).json({
+				success: false,
+				message: 'Please provide an email address',
+			});
+		}
+
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!emailRegex.test(email)) {
+			return res.status(400).json({
+				success: false,
+				message: 'Please provide a valid email address',
+			});
+		}
+
+		const normalizedEmail = email.toLowerCase().trim();
+
+		// 2. Check whether the user exists
+		const user = await User.findOne({ email: normalizedEmail });
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found with this email address',
+			});
+		}
+
+		// 3. Generate secure random reset token using Node.js crypto
+		const resetToken = crypto.randomBytes(32).toString('hex');
+
+		// 4. Save resetPasswordToken and resetPasswordExpires (15 minutes from now) in DB
+		user.resetPasswordToken = resetToken;
+		user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+		await user.save();
+
+		// 5. Send Email containing password reset link
+		try {
+			await sendPasswordResetEmail(user.email, resetToken);
+		} catch (emailError) {
+			console.error(`Failed to send password reset email: ${emailError.message}`);
+			return res.status(500).json({
+				success: false,
+				message: 'Failed to send password reset email. Please try again later.',
+				error: emailError.message,
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: 'Password reset link has been sent to your email address',
+		});
+	} catch (error) {
+		console.error(`Forgot Password Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error occurred during forgot password request',
+			error: error.message,
+		});
+	}
+};
+
+/**
+ * @desc    Reset Password using token
+ * @route   POST /api/v1/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = async (req, res) => {
+	try {
+		const token = req.body.token || req.body.resetToken || req.body.resetPasswordToken;
+		const newPassword = req.body.newPassword || req.body.password;
+
+		// 1. Validate inputs
+		if (!token || !newPassword) {
+			return res.status(400).json({
+				success: false,
+				message: 'Please provide both reset token and new password',
+			});
+		}
+
+		if (newPassword.length < 6) {
+			return res.status(400).json({
+				success: false,
+				message: 'Password must be at least 6 characters long',
+			});
+		}
+
+		// 2. Verify that token exists and has not expired
+		const user = await User.findOne({
+			resetPasswordToken: token,
+			resetPasswordExpires: { $gt: new Date() },
+		});
+
+		if (!user) {
+			return res.status(400).json({
+				success: false,
+				message: 'Invalid or expired password reset token',
+			});
+		}
+
+		// 3. Hash the new password using bcrypt
+		const salt = await bcrypt.genSalt(10);
+		const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+		// 4. Update user password and clear reset fields
+		user.password = hashedPassword;
+		user.resetPasswordToken = undefined;
+		user.resetPasswordExpires = undefined;
+		await user.save();
+
+		// 5. Return success response
+		return res.status(200).json({
+			success: true,
+			message: 'Password has been reset successfully',
+		});
+	} catch (error) {
+		console.error(`Reset Password Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error occurred during password reset',
+			error: error.message,
+		});
+	}
+};
+
 module.exports = {
 	register,
 	login,
+	forgotPassword,
+	resetPassword,
 };
+
 

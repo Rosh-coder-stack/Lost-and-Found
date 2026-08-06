@@ -100,13 +100,13 @@ export default function LoginPage({ onNavigate, onLoginSuccess }) {
             <div className="space-y-1.5">
               <div className="flex justify-between items-center px-1">
                 <label className="text-xs font-medium text-[#ccc3d8] block">Password</label>
-                <a 
-                  href="#" 
-                  onClick={(e) => { e.preventDefault(); alert('Password reset link sent to your email.'); }} 
-                  className="text-xs text-[#d2bbff] hover:underline"
+                <button 
+                  type="button" 
+                  onClick={() => onNavigate('forgot-password')} 
+                  className="text-xs text-[#d2bbff] hover:underline cursor-pointer"
                 >
                   Forgot Password?
-                </a>
+                </button>
               </div>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#958da1] text-lg group-focus-within:text-[#d2bbff] transition-colors">
