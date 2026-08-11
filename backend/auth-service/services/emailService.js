@@ -1,9 +1,10 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require('nodemailer'); // use nodemailer for sending emails
 
 /**
  * Creates and returns a Nodemailer transporter instance using environment variables.
  */
-const createTransporter = () => {
+const createTransporter = () => { // To send emails, we need to create a transporter using nodemailer. This transporter will be configured with SMTP settings from environment variables.
+
 	const host = process.env.SMTP_HOST || 'smtp.mailtrap.io';
 	const port = parseInt(process.env.SMTP_PORT || '2525', 10);
 	const user = process.env.SMTP_USER;
@@ -19,7 +20,7 @@ const createTransporter = () => {
 		transportOptions.auth = { user, pass };
 	}
 
-	return nodemailer.createTransport(transportOptions);
+	return nodemailer.createTransport(transportOptions); // return the transporter instance
 };
 
 /**

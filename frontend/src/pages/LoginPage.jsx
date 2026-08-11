@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { loginUser } from '../services/authService.js';
+import { loginUser, getGoogleAuthUrl } from '../services/authService.js';
 
 export default function LoginPage({ onNavigate, onLoginSuccess }) {
   const [email, setEmail] = useState('alex.miller@example.com');
@@ -180,7 +180,8 @@ export default function LoginPage({ onNavigate, onLoginSuccess }) {
 
           {/* Google Login Button */}
           <button 
-            onClick={() => onLoginSuccess({ name: 'Alex Miller', email: 'alex.miller@example.com' })}
+            type="button"
+            onClick={() => { window.location.href = getGoogleAuthUrl(); }}
             className="w-full flex items-center justify-center gap-3 border border-[#3F3F46] rounded-xl py-3 hover:bg-[#353437] transition-colors cursor-pointer text-sm text-white font-medium mb-6"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

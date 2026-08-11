@@ -10,7 +10,7 @@ export default function DashboardPage({
   onOpenStories,
   user
 }) {
-  const userName = user?.name || 'Alex';
+  const userName = user?.name || 'User';
 
   return (
     <div className="pt-28 pb-20 max-w-[1280px] mx-auto px-6">

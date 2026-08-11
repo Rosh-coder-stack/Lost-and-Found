@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { registerUser } from '../services/authService.js';
+import { registerUser, getGoogleAuthUrl } from '../services/authService.js';
 
 export default function SignupPage({ onNavigate, onSignUpSuccess }) {
   const [fullName, setFullName] = useState('');
@@ -202,7 +202,8 @@ export default function SignupPage({ onNavigate, onSignUpSuccess }) {
           {/* Social Links */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button 
-              onClick={() => onSignUpSuccess({ name: 'Google User', email: 'user@gmail.com' })}
+              type="button"
+              onClick={() => { window.location.href = getGoogleAuthUrl(); }}
               className="flex items-center justify-center gap-2 border border-[#3F3F46] rounded-xl py-2.5 hover:bg-[#353437] transition-colors cursor-pointer text-xs text-white"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">

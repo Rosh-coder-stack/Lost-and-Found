@@ -111,3 +111,12 @@ export const resetPasswordUser = async (token, newPassword) => {
   }
 };
 
+/**
+ * Service function to get the Google OAuth initiation URL pointing to API Gateway.
+ *
+ * @returns {string} The full Google OAuth redirect URL
+ */
+export const getGoogleAuthUrl = () => {
+  return `${API_URL}/google`;
+};
+
