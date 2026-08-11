@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const crypto = require('crypto'); // for password reset token generation
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -8,9 +8,12 @@ const generateToken = (user) => {
 	return jwt.sign(
 		{
 			id: user._id,
+			name: user.name,
+			email: user.email,
 			role: user.role,
-		},
-		process.env.JWT_SECRET,
+		},  // Payload
+
+		process.env.JWT_SECRET, // secret key for signing the token
 		{
 			expiresIn: '1d',
 		}
@@ -129,6 +132,13 @@ const login = async (req, res) => {
 			return res.status(404).json({
 				success: false,
 				message: 'User not found',
+			});
+		}
+
+		if (!user.password || user.provider === 'google') {
+			return res.status(400).json({
+				success: false,
+				message: 'This account was registered using Google Sign-In. Please sign in with Google.',
 			});
 		}
 
@@ -307,6 +317,7 @@ module.exports = {
 	login,
 	forgotPassword,
 	resetPassword,
+	generateToken,
 };
 
 

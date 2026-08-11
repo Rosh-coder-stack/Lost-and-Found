@@ -1,8 +1,7 @@
 // Proxy Routes: Configures proxy forwarding rules using http-proxy-middleware.
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware } = require('http-proxy-middleware'); // helps in forwarding requests to different services from the API Gateway
 const config = require('../config');
-
 const router = express.Router();
 
 /**
@@ -12,10 +11,10 @@ const router = express.Router();
  */
 const authProxy = createProxyMiddleware({
   target: config.authServiceUrl,
-  changeOrigin: true,
+  changeOrigin: true, // auth service feels like the request is coming directly to it
   pathFilter: '/api/v1/auth',
-  on: {
-    proxyReq: (proxyReq, req) => {
+  on: { // Event handlers for proxy events
+    proxyReq: (proxyReq, req) => { 
       // Log forwarding event for visibility
       console.log(`[Proxy] Forwarding ${req.method} ${req.originalUrl} -> ${config.authServiceUrl}${req.originalUrl}`);
     },

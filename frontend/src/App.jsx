@@ -12,17 +12,29 @@ import SignupPage from './pages/SignupPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
+import OAuthSuccessPage from './pages/OAuthSuccessPage.jsx';
 
 import { INITIAL_USER_REPORTS, SUGGESTED_ITEMS, GLOBAL_DATABASE_ITEMS } from './data/mockData.js';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('landing');
-  const [user, setUser] = useState({ name: 'Alex Miller', email: 'alex.miller@example.com' });
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
-  // Auto-detect reset password token in URL on load
+  // Auto-detect reset password token or OAuth callback in URL on load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('token') || window.location.pathname.includes('reset-password')) {
+    const pathname = window.location.pathname;
+
+    if (pathname.includes('oauth-success') || (urlParams.has('token') && !urlParams.has('resetToken') && !pathname.includes('reset-password'))) {
+      setCurrentScreen('oauth-success');
+    } else if (urlParams.has('token') || pathname.includes('reset-password')) {
       setCurrentScreen('reset-password');
     }
   }, []);
@@ -78,6 +90,8 @@ export default function App() {
 
   const handleLogout = () => {
     setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     showToast('Logged out successfully.');
     handleNavigate('landing');
   };
@@ -147,6 +161,13 @@ export default function App() {
           <ResetPasswordPage
             onNavigate={handleNavigate}
             showToast={showToast}
+          />
+        )}
+
+        {currentScreen === 'oauth-success' && (
+          <OAuthSuccessPage
+            onNavigate={handleNavigate}
+            onLoginSuccess={handleLoginSuccess}
           />
         )}
       </div>
