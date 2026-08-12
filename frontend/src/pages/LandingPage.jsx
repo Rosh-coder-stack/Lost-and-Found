@@ -92,12 +92,13 @@ export default function LandingPage({ onNavigate, onOpenReport, onOpenBrowse }) 
               </div>
             </div>
 
-            {/* Astronaut Image */}
-            <div className="w-full h-full flex justify-center items-center">
+            {/* Hero Illustration */}
+            <div className="w-full h-full flex justify-center items-center relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#7C3AED]/20 to-[#EC4899]/20 rounded-3xl filter blur-3xl opacity-60 -z-10"></div>
               <img
-                src={IMAGES.astronautHero}
-                alt="Astronaut Lost and Found 3D Illustration"
-                className="w-[85%] md:w-[90%] max-h-[500px] object-contain drop-shadow-2xl floating"
+                src={IMAGES.heroIllustration || IMAGES.astronautHero}
+                alt="AI-Powered Lost and Found Smart Search Illustration"
+                className="w-[88%] md:w-[92%] max-h-[500px] object-cover rounded-3xl shadow-2xl floating border border-[#3F3F46]/50"
               />
             </div>
           </div>

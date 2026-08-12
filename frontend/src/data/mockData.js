@@ -1,6 +1,9 @@
+import heroImage from '../assets/hero-lost-and-found.jpg';
+
 // Image URLs hotlinked directly as provided in the design
 export const IMAGES = {
-  astronautHero: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCbPZeQH9sz8EnqVKl4J8oChtGHMbwjxzMzl9a3zaKtHPBokk618DTDNZfUe3aFEUOWt6Je0jqCyIvnnaVZuAakotKb65RYr9q2V7UrtOlDYCkOUfjLddhXrT5X0QBEE9Wa3qFRjmH6hapYoAk-MnuVd06nrS7kzpu6z_f5-Wo45pDxeSi9k-LbP4qW_9o98_e8Sepx5RPCgstlO_hMiDB64VbcyYEA5-pleGjSbWJbnm_9jZanqoGkMZp22tzgP-7bKjcqwedGzOM',
+  heroIllustration: heroImage,
+  astronautHero: heroImage,
   labScanning: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBngNMGF6h3RNweU_BqpwKlbvVrGqCo5weg_6r3hSMOkmqxkrDAINHYqgM1DWdxdl2vnniOJv8-c2ccF7_aCDyD3p_jbcKhQO0HiHikcz5CScMY3DQV0vIMUImsFYVguRnSCdxI-qrsXdL7sfBJyvecWjbHsKN22EZAgDozZ96eMS2EkNnCFjRmYq9f--ta5jqGyYVZ3u3KUWCDksYiWPSgh6C0PS1DHBHmMg7NKtA1_NA4zMHqH-jOzw5RTeTf9eYDojbyLKq_QOw',
   
   // Avatars
