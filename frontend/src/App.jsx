@@ -120,8 +120,9 @@ export default function App() {
         {currentScreen === 'landing' && (
           <LandingPage
             onNavigate={handleNavigate}
-            onOpenReport={() => handleNavigate('login')}
-            onOpenBrowse={() => handleNavigate('login')}
+            user={user}
+            onOpenReport={() => user ? setIsReportModalOpen(true) : handleNavigate('login')}
+            onOpenBrowse={() => user ? setIsBrowseModalOpen(true) : handleNavigate('login')}
           />
         )}
 
