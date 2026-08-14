@@ -1,10 +1,12 @@
 import heroImage from '../assets/hero-lost-and-found.jpg';
+import detectiveScanImage from '../assets/detective-scan.jpg';
 
 // Image URLs hotlinked directly as provided in the design
 export const IMAGES = {
   heroIllustration: heroImage,
   astronautHero: heroImage,
-  labScanning: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBngNMGF6h3RNweU_BqpwKlbvVrGqCo5weg_6r3hSMOkmqxkrDAINHYqgM1DWdxdl2vnniOJv8-c2ccF7_aCDyD3p_jbcKhQO0HiHikcz5CScMY3DQV0vIMUImsFYVguRnSCdxI-qrsXdL7sfBJyvecWjbHsKN22EZAgDozZ96eMS2EkNnCFjRmYq9f--ta5jqGyYVZ3u3KUWCDksYiWPSgh6C0PS1DHBHmMg7NKtA1_NA4zMHqH-jOzw5RTeTf9eYDojbyLKq_QOw',
+  detectiveScan: detectiveScanImage,
+  labScanning: detectiveScanImage,
   
   // Avatars
   avatarWoman: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD_XL7lZoI5FtPNH7QnVRrb6sluNHHIJJ_q6ZFyX9UHa53s5MG7OzOZaDqTJKg0oy9yuJlZga28I5cbUpU1OhLd6cz974z16zZB0lTJqEKwDwhl2wMk_g72PiR76JxHStCLoEXqROJgcDQgBX75r7eoYworYDD1f0XYyPC8DQiF1PLtcw0rnOHmHW_PLGlb7Qhd5ChDcpQh8FRLVulln12-3ZsXC6Jk5o9i38nST8xA57vEkjwnG9ftcwRFdZ0yMHc4v9x0VNiDBKQ',

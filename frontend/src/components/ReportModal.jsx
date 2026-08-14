@@ -91,24 +91,26 @@ export default function ReportModal({ isOpen, onClose, onSubmitReport }) {
               <button
                 type="button"
                 onClick={() => setReportType('lost')}
-                className={`py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                className={`py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                   reportType === 'lost' 
                     ? 'bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white shadow' 
                     : 'text-[#A1A1AA] hover:text-white'
                 }`}
               >
-                I Lost Something
+                <span className="material-symbols-outlined text-base">report</span>
+                Report Lost Item
               </button>
               <button
                 type="button"
                 onClick={() => setReportType('found')}
-                className={`py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                className={`py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                   reportType === 'found' 
                     ? 'bg-[#ffb0cd] text-[#3e0022] shadow' 
                     : 'text-[#A1A1AA] hover:text-white'
                 }`}
               >
-                I Found Something
+                <span className="material-symbols-outlined text-base">search</span>
+                Browse Found Items
               </button>
             </div>
 
