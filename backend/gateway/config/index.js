@@ -10,6 +10,9 @@ const config = {
 
   // Target base URL for the Auth microservice
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:5001',
+
+  // Target base URL for the Item microservice
+  itemServiceUrl: process.env.ITEM_SERVICE_URL || 'http://localhost:5002',
 };
 
 module.exports = config;
