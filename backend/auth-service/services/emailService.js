@@ -9,11 +9,17 @@ const createTransporter = () => { // To send emails, we need to create a transpo
 	const port = parseInt(process.env.SMTP_PORT || '2525', 10);
 	const user = process.env.SMTP_USER;
 	const pass = process.env.SMTP_PASS;
+	const rejectUnauthorized = process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== undefined
+		? process.env.SMTP_TLS_REJECT_UNAUTHORIZED === 'true'
+		: false;
 
 	const transportOptions = {
 		host,
 		port,
 		secure: port === 465, // true for 465, false for other ports
+		tls: {
+			rejectUnauthorized,
+		},
 	};
 
 	if (user && pass) {
