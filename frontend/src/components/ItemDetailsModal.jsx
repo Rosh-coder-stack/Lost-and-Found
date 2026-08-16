@@ -37,6 +37,8 @@ export default function ItemDetailsModal({
     }, 1200);
   };
 
+  const isFound = item.type === 'found';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-['Inter',sans-serif]">
       <div className="glass-card w-full max-w-xl rounded-3xl p-6 md:p-8 relative border border-[#3F3F46] max-h-[90vh] overflow-y-auto bg-[#131316]/95 shadow-2xl space-y-5">
@@ -49,12 +51,27 @@ export default function ItemDetailsModal({
 
         {/* Badges */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Lost vs Found Badge */}
+          {isFound ? (
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm">volunteer_activism</span>
+              Found Item
+            </span>
+          ) : (
+            <span className="px-3 py-1 rounded-full bg-[#EC4899]/20 border border-[#EC4899]/40 text-[#ffb0cd] text-xs font-bold uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm">search</span>
+              Lost Item
+            </span>
+          )}
+
           <div className="px-3 py-1 rounded-full bg-[#7C3AED]/20 border border-[#7C3AED]/40 text-[#d2bbff] text-xs font-bold uppercase">
-            {item.status || item.badge || 'REPORTED'}
+            {item.status || 'REPORTED'}
           </div>
+
           <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-[#A1A1AA]">
             {item.category || 'Belonging'}
           </span>
+
           {isOwner && (
             <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-xs font-bold text-emerald-300 flex items-center gap-1">
               <span className="material-symbols-outlined text-xs">verified_user</span>
@@ -68,9 +85,11 @@ export default function ItemDetailsModal({
             {item.title}
           </h2>
           {item.location && (
-            <p className="text-[#A1A1AA] text-xs flex items-center gap-1 mt-1">
-              <span className="material-symbols-outlined text-sm text-[#EC4899]">location_on</span>
-              {item.location}
+            <p className="text-[#A1A1AA] text-xs flex items-center gap-1.5 mt-1.5">
+              <span className={`material-symbols-outlined text-sm ${isFound ? 'text-emerald-400' : 'text-[#EC4899]'}`}>
+                location_on
+              </span>
+              <span>{isFound ? 'Discovered at:' : 'Last seen at:'} <strong className="text-white">{item.location}</strong></span>
             </p>
           )}
         </div>
@@ -89,7 +108,9 @@ export default function ItemDetailsModal({
 
         {/* Item Description */}
         <div className="bg-[#18181B] border border-[#3F3F46] rounded-2xl p-4 space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[#A1A1AA]">Description & Circumstances</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#A1A1AA]">
+            {isFound ? 'Found Circumstances & Details' : 'Description & Circumstances'}
+          </h4>
           <p className="text-sm text-[#e5e1e4] leading-relaxed">
             {item.description}
           </p>
@@ -99,8 +120,8 @@ export default function ItemDetailsModal({
         {item.distinguishingDetails && (
           <div className="bg-[#18181B] border border-[#3F3F46] rounded-2xl p-4 space-y-1">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#d2bbff] flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">fingerprint</span>
-              Distinguishing Features
+              <span className="material-symbols-outlined text-sm">{isFound ? 'security' : 'fingerprint'}</span>
+              {isFound ? 'Safekeeping & Marks' : 'Distinguishing Features'}
             </h4>
             <p className="text-xs text-[#ccc3d8] leading-relaxed">
               {item.distinguishingDetails}
@@ -112,7 +133,7 @@ export default function ItemDetailsModal({
         {item.reporterName && (
           <div className="flex items-center justify-between text-xs text-[#A1A1AA] px-1">
             <span>Reported by: <span className="text-white font-medium">{item.reporterName}</span></span>
-            <span>Date: <span className="text-white">{item.dateLost ? new Date(item.dateLost).toLocaleDateString() : (item.timeAgo || 'Recently')}</span></span>
+            <span>{isFound ? 'Date Found:' : 'Date Lost:'} <span className="text-white">{item.dateLost ? new Date(item.dateLost).toLocaleDateString() : (item.timeAgo || 'Recently')}</span></span>
           </div>
         )}
 

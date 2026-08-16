@@ -104,9 +104,40 @@ async function runTests() {
     console.assert(createRes.status === 201, `Expected 201 Created but got ${createRes.status}: ${JSON.stringify(createData)}`);
     console.assert(createData.success === true, 'Success flag false');
     console.assert(createData.data.title === 'Sony WH-1000XM5 Headphones', 'Title mismatch');
+    console.assert(createData.data.type === 'lost', 'Default type must be lost');
     console.assert(createData.data.userId.toString() === userAId, `User ID spoofing! Expected ${userAId} but got ${createData.data.userId}`);
     console.assert(createData.data.status === 'searching', 'Default status must be searching');
-    console.log('✅ 201 Report Created & userId spoof protection passed\n');
+    console.log('✅ 201 Lost Report Created & userId spoof protection passed\n');
+
+    // Test 4b: Create Valid Found Item Report by User A
+    console.log('Test 4b: Create Valid Found Item Report by User A (201 expected)');
+    const foundPayload = {
+      title: 'Brown Leather Fossil Wallet',
+      category: 'Wallets & Bags',
+      location: 'Cafeteria Table 12',
+      dateLost: new Date().toISOString(),
+      description: 'Found brown wallet with ID and gym pass',
+      distinguishingDetails: 'Handed over to Campus Security Desk',
+    };
+
+    const createFoundRes = await fetch(`${baseUrl}/found`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenUserA}`,
+      },
+      body: JSON.stringify(foundPayload),
+    });
+
+    const createFoundData = await createFoundRes.json();
+    console.assert(createFoundRes.status === 201, `Expected 201 Created for Found item: ${JSON.stringify(createFoundData)}`);
+    console.assert(createFoundData.data.type === 'found', 'Item type must be found');
+    console.log('✅ 201 Found Report Created successfully\n');
+
+    // Clean up found test item
+    if (createFoundData.data && createFoundData.data._id) {
+      await Item.findByIdAndDelete(createFoundData.data._id);
+    }
 
     const createdItemId = createData.data._id;
 

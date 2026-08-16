@@ -17,23 +17,35 @@ const getAuthHeaders = () => {
 };
 
 /**
- * Service function to submit a new Lost Item Report.
+ * Service function to submit a new Item Report (Lost or Found).
  *
- * @param {Object} itemData - The lost item report data
+ * @param {Object} itemData - The item report data
+ * @param {string} [itemData.type] - 'lost' or 'found' (defaults to 'lost')
  * @param {string} itemData.title - Title/name of the item
  * @param {string} itemData.category - Item category
  * @param {string} itemData.description - Detailed description
- * @param {string} itemData.location - Last seen location
- * @param {string|Date} itemData.dateLost - Date/time the item was lost
+ * @param {string} itemData.location - Last seen location or discovery spot
+ * @param {string|Date} itemData.dateLost - Date/time the item was lost or found
  * @param {string} [itemData.imageUrl] - Optional image URL
- * @param {string} [itemData.distinguishingDetails] - Optional distinguishing features
+ * @param {string} [itemData.distinguishingDetails] - Optional distinguishing features / safekeeping notes
  * @param {string} [itemData.contactPreference] - Contact preference (email, phone, app_chat)
  * @param {string} [itemData.contactDetails] - Optional contact details
  * @returns {Promise<Object>} The newly created item response
  */
-export const createLostItemReport = async (itemData) => {
+export const createItemReport = async (itemData) => {
   try {
-    const response = await axios.post(`${API_URL}/lost`, itemData, getAuthHeaders());
+    const isFound = itemData.type === 'found';
+    const endpoint = isFound ? `${API_URL}/found` : `${API_URL}/lost`;
+
+    const normalizedData = {
+      ...itemData,
+      type: isFound ? 'found' : 'lost',
+      dateLost: itemData.dateLost || itemData.dateFound || itemData.date || new Date().toISOString(),
+      location: itemData.location || itemData.locationFound || itemData.foundLocation || '',
+      distinguishingDetails: itemData.distinguishingDetails || itemData.safekeepingDetails || itemData.safekeeping || '',
+    };
+
+    const response = await axios.post(endpoint, normalizedData, getAuthHeaders());
     return response.data;
   } catch (error) {
     if (error.response && error.response.data) {
@@ -48,6 +60,20 @@ export const createLostItemReport = async (itemData) => {
       throw new Error(error.message || 'An unexpected error occurred while creating report');
     }
   }
+};
+
+/**
+ * Service function to submit a new Lost Item Report.
+ */
+export const createLostItemReport = async (itemData) => {
+  return createItemReport({ ...itemData, type: 'lost' });
+};
+
+/**
+ * Service function to submit a new Found Item Report.
+ */
+export const createFoundItemReport = async (itemData) => {
+  return createItemReport({ ...itemData, type: 'found' });
 };
 
 /**

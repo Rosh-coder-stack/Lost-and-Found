@@ -21,7 +21,7 @@ const VALID_STATUSES = [
 ];
 
 /**
- * Validation Middleware for creating a lost-item report.
+ * Validation Middleware for creating a lost or found item report.
  * Validates all required and optional fields, sanitizes inputs,
  * and ensures user identity is NEVER overridden from the request body.
  */
@@ -32,9 +32,27 @@ const validateLostItem = (req, res, next) => {
   delete req.body.reporterEmail;
   delete req.body._id;
 
-  const { title, category, description, location, dateLost } = req.body;
+  // Handle field aliases between lost and found formats
+  if (!req.body.dateLost && (req.body.dateFound || req.body.date)) {
+    req.body.dateLost = req.body.dateFound || req.body.date;
+  }
+  if (!req.body.location && (req.body.locationFound || req.body.foundLocation)) {
+    req.body.location = req.body.locationFound || req.body.foundLocation;
+  }
+  if (!req.body.distinguishingDetails && (req.body.safekeepingDetails || req.body.safekeeping)) {
+    req.body.distinguishingDetails = req.body.safekeepingDetails || req.body.safekeeping;
+  }
+  if (!req.body.type && (req.path === '/found' || (req.originalUrl && req.originalUrl.includes('/found')))) {
+    req.body.type = 'found';
+  }
+
+  const { title, category, description, location, dateLost, type } = req.body;
 
   const errors = [];
+
+  if (type !== undefined && (typeof type !== 'string' || !['lost', 'found'].includes(type.toLowerCase()))) {
+    errors.push("Report type must be either 'lost' or 'found'");
+  }
 
   if (!title || typeof title !== 'string' || !title.trim()) {
     errors.push('Item title/name is required');
@@ -53,17 +71,17 @@ const validateLostItem = (req, res, next) => {
   }
 
   if (!location || typeof location !== 'string' || !location.trim()) {
-    errors.push('Last seen location is required');
+    errors.push('Location is required');
   } else if (location.trim().length > 200) {
     errors.push('Location cannot exceed 200 characters');
   }
 
   if (!dateLost) {
-    errors.push('Date and time lost is required');
+    errors.push('Date and time is required');
   } else {
     const parsedDate = new Date(dateLost);
     if (isNaN(parsedDate.getTime())) {
-      errors.push('Please provide a valid date/time for when the item was lost');
+      errors.push('Please provide a valid date/time');
     }
   }
 
@@ -97,8 +115,12 @@ const validateUpdateItem = (req, res, next) => {
   delete req.body.reporterEmail;
   delete req.body._id;
 
-  const { title, category, description, location, dateLost, status } = req.body;
+  const { title, category, description, location, dateLost, status, type } = req.body;
   const errors = [];
+
+  if (type !== undefined && (typeof type !== 'string' || !['lost', 'found'].includes(type.toLowerCase()))) {
+    errors.push("Report type must be either 'lost' or 'found'");
+  }
 
   if (title !== undefined) {
     if (typeof title !== 'string' || !title.trim()) {

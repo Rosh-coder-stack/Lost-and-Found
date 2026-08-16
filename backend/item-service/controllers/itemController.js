@@ -14,39 +14,57 @@ const CATEGORY_DEFAULT_IMAGES = {
 };
 
 /**
- * @desc    Create a new Lost Item Report
- * @route   POST /api/v1/items/lost (or POST /api/v1/items)
+ * @desc    Create a new Lost or Found Item Report
+ * @route   POST /api/v1/items/lost, POST /api/v1/items/found, or POST /api/v1/items
  * @access  Private (Authenticated User only)
  */
 const createLostItem = async (req, res) => {
   try {
     const {
+      type,
       title,
       category,
       description,
       location,
+      locationFound,
+      foundLocation,
       dateLost,
+      dateFound,
+      date,
       imageUrl,
       distinguishingDetails,
+      safekeepingDetails,
+      safekeeping,
       contactPreference,
       contactDetails,
     } = req.body;
+
+    const itemType =
+      (type && type.toLowerCase() === 'found') ||
+      req.path === '/found' ||
+      (req.originalUrl && req.originalUrl.includes('/found'))
+        ? 'found'
+        : 'lost';
+
+    const finalLocation = (location || locationFound || foundLocation || '').trim();
+    const rawDate = dateLost || dateFound || date || new Date();
+    const finalDetails = (distinguishingDetails || safekeepingDetails || safekeeping || '').trim();
 
     // Use user-provided image, or default category placeholder
     const finalImageUrl = imageUrl && imageUrl.trim()
       ? imageUrl.trim()
       : CATEGORY_DEFAULT_IMAGES[category] || CATEGORY_DEFAULT_IMAGES['Other'];
 
-    // Create new lost item record in MongoDB strictly tied to authenticated user ID
+    // Create new item record in MongoDB strictly tied to authenticated user ID
     const newItem = await Item.create({
-      type: 'lost',
+      type: itemType,
       title: title.trim(),
       category: category.trim(),
       description: description.trim(),
-      location: location.trim(),
-      dateLost: new Date(dateLost),
+      location: finalLocation,
+      dateLost: new Date(rawDate),
       imageUrl: finalImageUrl,
-      distinguishingDetails: distinguishingDetails ? distinguishingDetails.trim() : '',
+      distinguishingDetails: finalDetails,
       contactPreference: contactPreference || 'email',
       contactDetails: contactDetails ? contactDetails.trim() : '',
       status: 'searching',
@@ -58,17 +76,27 @@ const createLostItem = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Lost item report created successfully',
+      message: `${itemType === 'found' ? 'Found' : 'Lost'} item report created successfully`,
       data: newItem,
     });
   } catch (error) {
-    console.error('[Item Service] Error creating lost item report:', error);
+    console.error('[Item Service] Error creating item report:', error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error creating lost item report',
+      message: 'Internal server error creating item report',
       error: error.message,
     });
   }
+};
+
+/**
+ * @desc    Create a new Found Item Report (Convenience handler)
+ * @route   POST /api/v1/items/found
+ * @access  Private (Authenticated User only)
+ */
+const createFoundItem = async (req, res) => {
+  req.body.type = 'found';
+  return createLostItem(req, res);
 };
 
 /**
@@ -217,6 +245,7 @@ const updateItemReport = async (req, res) => {
 
     // 3. Extract and update allowed fields
     const {
+      type,
       title,
       category,
       description,
@@ -229,6 +258,9 @@ const updateItemReport = async (req, res) => {
       status,
     } = req.body;
 
+    if (type !== undefined && ['lost', 'found'].includes(type.toLowerCase())) {
+      item.type = type.toLowerCase();
+    }
     if (title !== undefined) item.title = title.trim();
     if (category !== undefined) item.category = category.trim();
     if (description !== undefined) item.description = description.trim();
@@ -265,7 +297,7 @@ const updateItemReport = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Lost item report updated successfully',
+      message: `${updatedItem.type === 'found' ? 'Found' : 'Lost'} item report updated successfully`,
       data: updatedItem,
     });
   } catch (error) {
@@ -299,7 +331,7 @@ const deleteItemReport = async (req, res) => {
     if (!item) {
       return res.status(404).json({
         success: false,
-        message: 'Lost item report not found',
+        message: 'Item report not found',
       });
     }
 
@@ -319,7 +351,7 @@ const deleteItemReport = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Lost item report deleted successfully',
+      message: 'Item report deleted successfully',
       data: { id },
     });
   } catch (error) {
@@ -334,6 +366,7 @@ const deleteItemReport = async (req, res) => {
 
 module.exports = {
   createLostItem,
+  createFoundItem,
   getUserReports,
   getAllItems,
   getItemById,

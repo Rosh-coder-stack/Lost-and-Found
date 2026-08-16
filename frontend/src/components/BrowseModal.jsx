@@ -26,6 +26,7 @@ const CATEGORY_DEFAULT_IMAGES = {
 export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedType, setSelectedType] = useState('all'); // 'all' | 'lost' | 'found'
 
   if (!isOpen) return null;
 
@@ -36,7 +37,11 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
     const matchesSearch = !searchTerm.trim() || titleMatch || locationMatch || descriptionMatch;
 
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+
+    const itemType = item.type === 'found' ? 'found' : 'lost';
+    const matchesType = selectedType === 'all' || itemType === selectedType;
+
+    return matchesSearch && matchesCategory && matchesType;
   });
 
   return (
@@ -63,27 +68,65 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
           </p>
         </div>
 
-        {/* Search Input & Category Filters */}
+        {/* Search Input, Type Switcher & Category Filters */}
         <div className="space-y-4 mb-6">
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#958da1] text-xl">
-              search
-            </span>
-            <input
-              type="text"
-              placeholder="Search by title, location, or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#18181B] border border-[#3F3F46] rounded-xl py-3.5 pl-12 pr-10 text-white placeholder:text-[#958da1]/60 focus:outline-none focus:border-[#7C3AED] text-sm"
-            />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#958da1] hover:text-white"
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#958da1] text-xl">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Search by title, location, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#18181B] border border-[#3F3F46] rounded-xl py-3 pl-12 pr-10 text-white placeholder:text-[#958da1]/60 focus:outline-none focus:border-[#7C3AED] text-sm"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#958da1] hover:text-white"
+                >
+                  <span className="material-symbols-outlined text-sm">clear</span>
+                </button>
+              )}
+            </div>
+
+            {/* Type Filter Buttons */}
+            <div className="flex items-center p-1 bg-[#18181B] border border-[#3F3F46] rounded-xl gap-1">
+              <button
+                onClick={() => setSelectedType('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  selectedType === 'all'
+                    ? 'bg-[#7C3AED] text-white shadow-sm'
+                    : 'text-[#A1A1AA] hover:text-white'
+                }`}
               >
-                <span className="material-symbols-outlined text-sm">clear</span>
+                All
               </button>
-            )}
+              <button
+                onClick={() => setSelectedType('lost')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                  selectedType === 'lost'
+                    ? 'bg-[#EC4899] text-white shadow-sm'
+                    : 'text-[#A1A1AA] hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xs">search</span>
+                Lost
+              </button>
+              <button
+                onClick={() => setSelectedType('found')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                  selectedType === 'found'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-[#A1A1AA] hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xs">volunteer_activism</span>
+                Found
+              </button>
+            </div>
           </div>
 
           {/* Category Chips */}
@@ -110,7 +153,8 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
             filteredItems.map((item) => {
               const id = item._id || item.id;
               const image = item.imageUrl || item.image || CATEGORY_DEFAULT_IMAGES[item.category] || CATEGORY_DEFAULT_IMAGES['Other'];
-              const status = (item.status || item.type || 'REPORTED').toUpperCase();
+              const status = (item.status || 'SEARCHING').toUpperCase();
+              const isFound = item.type === 'found';
 
               return (
                 <div 
@@ -127,7 +171,23 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
                         e.target.src = CATEGORY_DEFAULT_IMAGES[item.category] || CATEGORY_DEFAULT_IMAGES['Other'];
                       }}
                     />
-                    <div className="absolute top-3 right-3 bg-[#7c3aed] text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg border border-white/10">
+
+                    {/* Top Left: Lost vs Found badge */}
+                    <div className="absolute top-3 left-3">
+                      {isFound ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/90 text-white shadow-md backdrop-blur-md">
+                          <span className="material-symbols-outlined text-xs">volunteer_activism</span>
+                          FOUND
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-[#EC4899]/90 text-white shadow-md backdrop-blur-md">
+                          <span className="material-symbols-outlined text-xs">search</span>
+                          LOST
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg border border-white/10">
                       {status}
                     </div>
                     <div className="absolute bottom-3 left-3">
@@ -136,23 +196,24 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
                       </span>
                     </div>
                   </div>
-                  <div className="p-4 flex flex-col flex-1">
-                    <h4 className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-white text-base mb-1 group-hover:text-[#d2bbff] transition-colors line-clamp-1">
-                      {item.title}
-                    </h4>
-                    {item.location && (
-                      <p className="text-[#A1A1AA] text-xs mb-2 flex items-center gap-1 line-clamp-1">
-                        <span className="material-symbols-outlined text-xs text-[#EC4899]">location_on</span>
-                        {item.location}
+                  
+                  <div className="p-4 flex flex-col flex-1 justify-between gap-3">
+                    <div>
+                      <h4 className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-white text-base group-hover:text-[#d2bbff] transition-colors line-clamp-1">
+                        {item.title}
+                      </h4>
+                      <p className="text-xs text-[#A1A1AA] mt-1 line-clamp-2 leading-relaxed">
+                        {item.description}
                       </p>
-                    )}
-                    <p className="text-[#ccc3d8] text-xs line-clamp-2 mb-3 flex-1 leading-relaxed">
-                      {item.description}
-                    </p>
-                    <div className="flex justify-between items-center text-[10px] text-[#A1A1AA] pt-2 border-t border-[#3F3F46]/50">
-                      <span>{item.timeAgo || item.date || 'Recent'}</span>
-                      <span className="text-[#d2bbff] font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                        View Details <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-[#27272A] text-[11px] text-[#958da1]">
+                      <span className="flex items-center gap-1 line-clamp-1 max-w-[160px]">
+                        <span className="material-symbols-outlined text-[13px] text-[#EC4899]">location_on</span>
+                        {item.location || 'Unknown'}
+                      </span>
+                      <span className="text-[#d2bbff] font-semibold group-hover:translate-x-0.5 transition-transform flex items-center">
+                        View <span className="material-symbols-outlined text-xs">arrow_forward</span>
                       </span>
                     </div>
                   </div>
@@ -160,10 +221,10 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
               );
             })
           ) : (
-            <div className="col-span-full py-12 text-center text-[#A1A1AA]">
-              <span className="material-symbols-outlined text-4xl mb-2 text-[#3F3F46]">search_off</span>
-              <p className="text-base font-semibold text-white">No items found matching your filter</p>
-              <p className="text-xs mt-1">Try searching for keywords like "Keys", "Wallet", "Sony", or "MacBook"</p>
+            <div className="col-span-full py-16 text-center text-[#A1A1AA]">
+              <span className="material-symbols-outlined text-4xl mb-2 text-[#7C3AED]/40">search_off</span>
+              <p className="text-sm font-semibold text-white">No items found matching your criteria</p>
+              <p className="text-xs text-[#958da1] mt-1">Try clearing your filters or changing search keywords</p>
             </div>
           )}
         </div>
@@ -171,4 +232,3 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
     </div>
   );
 }
-

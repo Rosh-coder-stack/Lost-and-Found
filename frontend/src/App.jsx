@@ -50,6 +50,7 @@ export default function App() {
   // Modal states
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [editingReport, setEditingReport] = useState(null);
+  const [reportInitialType, setReportInitialType] = useState(null);
   const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
   const [isStoriesModalOpen, setIsStoriesModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -69,43 +70,35 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Fetch real user reports from backend
+  // Fetch reports for currently logged-in user
   const fetchUserReports = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    setIsLoadingReports(true);
+    if (!user) return;
     try {
+      setIsLoadingReports(true);
       const response = await getMyReports();
       if (response && response.data) {
         setUserReports(response.data);
       }
-    } catch (err) {
-      console.warn('[App] Could not fetch remote user reports, keeping local state:', err.message);
+    } catch (error) {
+      console.error('Error fetching user reports:', error);
     } finally {
       setIsLoadingReports(false);
     }
-  }, []);
+  }, [user]);
 
-  // Fetch all global items from MongoDB for public browse list
+  // Fetch public global items
   const fetchGlobalItems = useCallback(async () => {
     try {
       const response = await getAllItems();
       if (response && response.data) {
         setGlobalItems(response.data);
       }
-    } catch (err) {
-      console.warn('[App] Could not fetch global items from backend:', err.message);
+    } catch (error) {
+      console.error('Error fetching global items:', error);
     }
   }, []);
 
-
-  // Initial load of global items
-  useEffect(() => {
-    fetchGlobalItems();
-  }, [fetchGlobalItems]);
-
-  // Sync user reports when user logs in or switches to dashboard
+  // Fetch reports when user logs in or switches to dashboard
   useEffect(() => {
     if (user && currentScreen === 'dashboard') {
       fetchUserReports();
@@ -114,11 +107,12 @@ export default function App() {
   }, [user, currentScreen, fetchUserReports, fetchGlobalItems]);
 
   // Handler for opening Report Modal in Create Mode
-  const handleOpenCreateReport = () => {
+  const handleOpenCreateReport = (initialType = null) => {
     if (!user) {
       handleNavigate('login');
       return;
     }
+    setReportInitialType(initialType);
     setEditingReport(null);
     setIsReportModalOpen(true);
   };
@@ -129,6 +123,7 @@ export default function App() {
       handleNavigate('login');
       return;
     }
+    setReportInitialType(report?.type || null);
     setEditingReport(report);
     setIsReportModalOpen(true);
   };
@@ -136,6 +131,7 @@ export default function App() {
   // Handler after successful Create or Edit in ReportModal
   const handleReportSubmitSuccess = (savedItem, actionType) => {
     const itemId = savedItem._id || savedItem.id;
+    const isFound = savedItem.type === 'found';
 
     if (actionType === 'updated') {
       setUserReports((prev) =>
@@ -144,11 +140,11 @@ export default function App() {
       setGlobalItems((prev) =>
         prev.map((r) => ((r._id || r.id) === itemId ? savedItem : r))
       );
-      showToast(`Report for "${savedItem.title}" updated successfully`);
+      showToast(`${isFound ? 'Found' : 'Lost'} report for "${savedItem.title}" updated successfully`);
     } else {
       setUserReports((prev) => [savedItem, ...prev]);
       setGlobalItems((prev) => [savedItem, ...prev]);
-      showToast(`Lost item report published for "${savedItem.title}"`);
+      showToast(`${isFound ? 'Found' : 'Lost'} item report published for "${savedItem.title}"`);
       handleNavigate('dashboard');
     }
 
@@ -297,9 +293,11 @@ export default function App() {
       <ReportModal
         isOpen={isReportModalOpen}
         editingItem={editingReport}
+        initialType={reportInitialType}
         onClose={() => {
           setIsReportModalOpen(false);
           setEditingReport(null);
+          setReportInitialType(null);
         }}
         onSubmitSuccess={handleReportSubmitSuccess}
       />

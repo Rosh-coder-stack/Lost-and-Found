@@ -72,6 +72,7 @@ export default function DashboardPage({
     const timeAgo = report.createdAt ? formatTimeAgo(report.createdAt) : (report.timeAgo || 'Recently');
     const statusType = report.statusType || (report.status === 'matched' ? 'match' : (report.status === 'resolved' || report.status === 'returned' || report.status === 'claimed' ? 'resolved' : 'searching'));
     const statusText = (report.status || 'SEARCHING').toUpperCase();
+    const type = report.type === 'found' ? 'found' : 'lost';
 
     return {
       ...report,
@@ -80,17 +81,22 @@ export default function DashboardPage({
       timeAgo,
       statusType,
       status: statusText,
+      type,
     };
   });
 
+  const lostCount = normalizedReports.filter((r) => r.type === 'lost').length;
+  const foundCount = normalizedReports.filter((r) => r.type === 'found').length;
+  const matchesCount = normalizedReports.filter((r) => r.statusType === 'match' || r.status === 'MATCHED').length;
+
   // Filter user reports based on selected tab
   const filteredReports = normalizedReports.filter((report) => {
+    if (activeTab === 'lost') return report.type === 'lost';
+    if (activeTab === 'found') return report.type === 'found';
     if (activeTab === 'matches') return report.statusType === 'match' || report.status === 'MATCHED';
     if (activeTab === 'searching') return report.statusType === 'searching' || report.status === 'SEARCHING';
     return true;
   });
-
-  const matchesCount = normalizedReports.filter((r) => r.statusType === 'match' || r.status === 'MATCHED').length;
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
@@ -123,25 +129,25 @@ export default function DashboardPage({
             </span>
           </h1>
           <p className="text-sm md:text-base text-[#A1A1AA] mt-1 max-w-xl">
-            Track your reported belongings, live visual matches, and community recoveries.
+            Track your reported belongings, registered found items, live visual matches, and recoveries.
           </p>
         </div>
 
         {/* Primary Action Buttons */}
         <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
           <button
-            onClick={onOpenReport}
+            onClick={() => onOpenReport && onOpenReport()}
             className="flex-1 sm:flex-none px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white font-bold text-sm primary-glow hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
           >
             <span className="material-symbols-outlined text-lg">add_circle</span>
-            Report Lost Item
+            Report Item
           </button>
           <button
             onClick={onOpenBrowse}
             className="flex-1 sm:flex-none px-6 py-3.5 rounded-xl bg-[#18181B] border border-[#3F3F46] hover:border-[#7C3AED] text-white font-bold text-sm hover:bg-white/5 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-lg text-[#d2bbff]">search</span>
-            Browse Found Items
+            Browse All Items
           </button>
         </div>
       </section>
@@ -158,12 +164,12 @@ export default function DashboardPage({
                   Your Reports
                 </h2>
                 <p className="text-xs text-[#A1A1AA] mt-0.5">
-                  Items you have registered as lost or missing
+                  Items you have reported as lost or found
                 </p>
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-[#18181B] border border-[#27272A] rounded-xl w-fit">
+              <div className="flex items-center gap-1.5 p-1 bg-[#18181B] border border-[#27272A] rounded-xl w-fit flex-wrap">
                 <button
                   onClick={() => setActiveTab('all')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -175,6 +181,26 @@ export default function DashboardPage({
                   All ({normalizedReports.length})
                 </button>
                 <button
+                  onClick={() => setActiveTab('lost')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'lost'
+                      ? 'bg-[#EC4899] text-white shadow-sm'
+                      : 'text-[#A1A1AA] hover:text-white'
+                  }`}
+                >
+                  Lost ({lostCount})
+                </button>
+                <button
+                  onClick={() => setActiveTab('found')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'found'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-[#A1A1AA] hover:text-white'
+                  }`}
+                >
+                  Found ({foundCount})
+                </button>
+                <button
                   onClick={() => setActiveTab('matches')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'matches'
@@ -183,16 +209,6 @@ export default function DashboardPage({
                   }`}
                 >
                   Matches ({matchesCount})
-                </button>
-                <button
-                  onClick={() => setActiveTab('searching')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'searching'
-                      ? 'bg-[#7C3AED] text-white shadow-sm'
-                      : 'text-[#A1A1AA] hover:text-white'
-                  }`}
-                >
-                  Searching
                 </button>
               </div>
             </div>
@@ -216,14 +232,14 @@ export default function DashboardPage({
                 <h3 className="text-lg font-bold text-white mb-1">No reports found</h3>
                 <p className="text-sm text-[#A1A1AA] max-w-sm mx-auto mb-6">
                   {activeTab === 'all' 
-                    ? "You haven't reported any lost items yet. Submit your first report to start tracking."
-                    : "No reports currently matching this filter."}
+                    ? "You haven't reported any lost or found items yet. Submit your report to start tracking."
+                    : `No reports currently found in the "${activeTab}" category.`}
                 </p>
                 <button
-                  onClick={onOpenReport}
+                  onClick={() => onOpenReport && onOpenReport()}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white text-xs font-bold cursor-pointer hover:scale-105 transition-all shadow-md"
                 >
-                  Report Lost Item
+                  Report Item
                 </button>
               </div>
             ) : (
@@ -246,7 +262,21 @@ export default function DashboardPage({
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#131316] via-transparent to-transparent opacity-80"></div>
                       
-                      {/* Status Badge */}
+                      {/* Top Type & Status Badges */}
+                      <div className="absolute top-3 left-3">
+                        {report.type === 'found' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/90 text-white shadow-md backdrop-blur-md">
+                            <span className="material-symbols-outlined text-[13px]">volunteer_activism</span>
+                            FOUND
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#EC4899]/90 text-white shadow-md backdrop-blur-md">
+                            <span className="material-symbols-outlined text-[13px]">search</span>
+                            LOST
+                          </span>
+                        )}
+                      </div>
+
                       <div className="absolute top-3 right-3">
                         {report.statusType === 'match' ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#7C3AED] text-white shadow-lg border border-purple-400/30">
