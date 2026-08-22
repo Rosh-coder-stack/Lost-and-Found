@@ -14,8 +14,17 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import OAuthSuccessPage from './pages/OAuthSuccessPage.jsx';
 
-import { INITIAL_USER_REPORTS, SUGGESTED_ITEMS, GLOBAL_DATABASE_ITEMS } from './data/mockData.js';
+import { SUGGESTED_ITEMS } from './data/mockData.js';
 import { getMyReports, getAllItems, deleteItemReport } from './services/itemService.js';
+import {
+  getMyClaims,
+  getIncomingClaimRequests,
+  acceptClaim,
+  rejectClaim,
+  askFollowUpProof,
+  replyFollowUpProof,
+  resubmitClaim,
+} from './services/claimService.js';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('landing');
@@ -33,7 +42,10 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const pathname = window.location.pathname;
 
-    if (pathname.includes('oauth-success') || (urlParams.has('token') && !urlParams.has('resetToken') && !pathname.includes('reset-password'))) {
+    if (
+      pathname.includes('oauth-success') ||
+      (urlParams.has('token') && !urlParams.has('resetToken') && !pathname.includes('reset-password'))
+    ) {
       setCurrentScreen('oauth-success');
     } else if (urlParams.has('token') || pathname.includes('reset-password')) {
       setCurrentScreen('reset-password');
@@ -46,6 +58,10 @@ export default function App() {
   const [suggestedItems] = useState(SUGGESTED_ITEMS);
   const [globalItems, setGlobalItems] = useState([]);
 
+  // Claims Data states
+  const [incomingClaims, setIncomingClaims] = useState([]);
+  const [myClaims, setMyClaims] = useState([]);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(false);
 
   // Modal states
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -98,13 +114,37 @@ export default function App() {
     }
   }, []);
 
-  // Fetch reports when user logs in or switches to dashboard
+  // Fetch user claims (both incoming requests and my submitted claims)
+  const fetchUserClaims = useCallback(async () => {
+    if (!user) return;
+    try {
+      setIsLoadingClaims(true);
+      const [incomingRes, myRes] = await Promise.allSettled([
+        getIncomingClaimRequests(),
+        getMyClaims(),
+      ]);
+
+      if (incomingRes.status === 'fulfilled' && incomingRes.value?.data) {
+        setIncomingClaims(incomingRes.value.data);
+      }
+      if (myRes.status === 'fulfilled' && myRes.value?.data) {
+        setMyClaims(myRes.value.data);
+      }
+    } catch (error) {
+      console.warn('Error fetching claims:', error.message);
+    } finally {
+      setIsLoadingClaims(false);
+    }
+  }, [user]);
+
+  // Fetch reports and claims when user logs in or switches to dashboard
   useEffect(() => {
     if (user && currentScreen === 'dashboard') {
       fetchUserReports();
       fetchGlobalItems();
+      fetchUserClaims();
     }
-  }, [user, currentScreen, fetchUserReports, fetchGlobalItems]);
+  }, [user, currentScreen, fetchUserReports, fetchGlobalItems, fetchUserClaims]);
 
   // Handler for opening Report Modal in Create Mode
   const handleOpenCreateReport = (initialType = null) => {
@@ -148,9 +188,9 @@ export default function App() {
       handleNavigate('dashboard');
     }
 
-    // Refresh backend data in background
     fetchUserReports();
     fetchGlobalItems();
+    fetchUserClaims();
   };
 
   // Handler for Deleting a Report
@@ -159,7 +199,6 @@ export default function App() {
     try {
       await deleteItemReport(itemId);
 
-      // Optimistically remove from state
       setUserReports((prev) => prev.filter((r) => (r._id || r.id) !== itemId));
       setGlobalItems((prev) => prev.filter((r) => (r._id || r.id) !== itemId));
 
@@ -169,18 +208,77 @@ export default function App() {
 
       showToast(`Report "${report.title}" removed successfully.`);
 
-      // Re-sync with backend
       fetchUserReports();
       fetchGlobalItems();
+      fetchUserClaims();
     } catch (err) {
       showToast(err.message || 'Failed to delete report.');
       throw err;
     }
   };
 
-  const handleClaimItem = (item, proofMessage) => {
-    showToast(`Claim verification submitted for "${item.title}"`);
-    setSelectedItem(null);
+  // Handler after submitting claim from modal
+  const handleClaimSubmitted = (claimData) => {
+    showToast('Ownership claim verification request submitted successfully!');
+    fetchUserClaims();
+  };
+
+  // Claim actions handlers
+  const handleAcceptClaim = async (claimId, note) => {
+    try {
+      await acceptClaim(claimId, note);
+      showToast('Claim accepted! Contact information shared.');
+      fetchUserClaims();
+      fetchUserReports();
+      fetchGlobalItems();
+    } catch (err) {
+      showToast(err.message || 'Failed to accept claim.');
+      throw err;
+    }
+  };
+
+  const handleRejectClaim = async (claimId, reason) => {
+    try {
+      await rejectClaim(claimId, reason);
+      showToast('Claim rejected.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to reject claim.');
+      throw err;
+    }
+  };
+
+  const handleAskProof = async (claimId, question) => {
+    try {
+      await askFollowUpProof(claimId, question);
+      showToast('Follow-up proof request sent to claimant.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to request proof.');
+      throw err;
+    }
+  };
+
+  const handleReplyProof = async (claimId, reply) => {
+    try {
+      await replyFollowUpProof(claimId, reply);
+      showToast('Response sent to the reporter.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to send response.');
+      throw err;
+    }
+  };
+
+  const handleResubmitClaim = async (claimId, data) => {
+    try {
+      await resubmitClaim(claimId, data);
+      showToast('Final claim attempt submitted successfully.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to submit final attempt.');
+      throw err;
+    }
   };
 
   const handleLoginSuccess = (userData) => {
@@ -200,6 +298,8 @@ export default function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUserReports([]);
+    setIncomingClaims([]);
+    setMyClaims([]);
     showToast('Logged out successfully.');
     handleNavigate('landing');
   };
@@ -239,6 +339,9 @@ export default function App() {
             user={user}
             userReports={userReports}
             isLoadingReports={isLoadingReports}
+            incomingClaims={incomingClaims}
+            myClaims={myClaims}
+            isLoadingClaims={isLoadingClaims}
             suggestedItems={suggestedItems}
             onOpenReport={handleOpenCreateReport}
             onOpenBrowse={() => setIsBrowseModalOpen(true)}
@@ -246,6 +349,11 @@ export default function App() {
             onOpenStories={() => setIsStoriesModalOpen(true)}
             onEditReport={handleOpenEditReport}
             onDeleteReport={handleDeleteReport}
+            onAcceptClaim={handleAcceptClaim}
+            onRejectClaim={handleRejectClaim}
+            onAskProof={handleAskProof}
+            onReplyProof={handleReplyProof}
+            onResubmitClaim={handleResubmitClaim}
           />
         )}
 
@@ -284,7 +392,7 @@ export default function App() {
         )}
       </div>
 
-      {/* Global Footer (shown on landing and dashboard) */}
+      {/* Global Footer */}
       {(currentScreen === 'landing' || currentScreen === 'dashboard') && (
         <Footer onNavigate={handleNavigate} />
       )}
@@ -316,7 +424,7 @@ export default function App() {
         item={selectedItem}
         currentUser={user}
         onClose={() => setSelectedItem(null)}
-        onClaimItem={handleClaimItem}
+        onClaimSubmitted={handleClaimSubmitted}
         onEditItem={handleOpenEditReport}
         onDeleteItem={handleDeleteReport}
       />
