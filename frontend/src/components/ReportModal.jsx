@@ -34,6 +34,7 @@ export default function ReportModal({
   const [step, setStep] = useState('choose');
   const [reportType, setReportType] = useState('lost'); // 'lost' | 'found'
 
+  
   // Form state
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Electronics');

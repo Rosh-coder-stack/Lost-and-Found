@@ -55,8 +55,34 @@ const itemProxy = createProxyMiddleware({
   },
 });
 
+/**
+ * Claim Service Proxy
+ * Proxies all requests matching '/api/v1/claims' to http://localhost:5003 (or CLAIM_SERVICE_URL env var).
+ * Preserves the original path (/api/v1/claims/...) when forwarding.
+ */
+const claimProxy = createProxyMiddleware({
+  target: config.claimServiceUrl,
+  changeOrigin: true,
+  pathRewrite: (path, req) => req.originalUrl,
+  on: {
+    proxyReq: (proxyReq, req) => {
+      console.log(`[Proxy] Forwarding ${req.method} ${req.originalUrl} -> ${config.claimServiceUrl}${req.originalUrl}`);
+    },
+    error: (err, req, res) => {
+      console.error(`[Proxy Error] Unable to connect to Claim Service at ${config.claimServiceUrl}:`, err.message);
+      if (!res.headersSent) {
+        res.status(502).json({
+          status: 'Error',
+          message: 'Bad Gateway: Claim Service is unavailable',
+        });
+      }
+    },
+  },
+});
+
 // Mount the proxy middleware onto the router
 router.use('/api/v1/auth', authProxy);
 router.use('/api/v1/items', itemProxy);
+router.use('/api/v1/claims', claimProxy);
 
 module.exports = router;

@@ -13,6 +13,9 @@ const config = {
 
   // Target base URL for the Item microservice
   itemServiceUrl: process.env.ITEM_SERVICE_URL || 'http://localhost:5002',
+
+  // Target base URL for the Claim microservice
+  claimServiceUrl: process.env.CLAIM_SERVICE_URL || 'http://localhost:5003',
 };
 
 module.exports = config;

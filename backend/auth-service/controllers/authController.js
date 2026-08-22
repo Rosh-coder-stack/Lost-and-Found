@@ -1,4 +1,5 @@
 const crypto = require('crypto'); // for password reset token generation
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -312,11 +313,56 @@ const resetPassword = async (req, res) => {
 	}
 };
 
+/**
+ * @desc    Get safe public user profile by ID
+ * @route   GET /api/v1/auth/users/:id
+ * @access  Public / Internal
+ */
+const getUserById = async (req, res) => {
+	try {
+		const { id } = req.params;
+		if (!mongoose.Types.ObjectId.isValid(id)) {
+			return res.status(400).json({
+				success: false,
+				message: 'Invalid user ID format',
+			});
+		}
+
+		const user = await User.findById(id).select('_id name email role createdAt');
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found',
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			data: {
+				_id: user._id,
+				id: user._id,
+				name: user.name,
+				email: user.email,
+				role: user.role,
+				createdAt: user.createdAt,
+			},
+		});
+	} catch (error) {
+		console.error(`Get User By ID Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error retrieving user',
+			error: error.message,
+		});
+	}
+};
+
 module.exports = {
 	register,
 	login,
 	forgotPassword,
 	resetPassword,
+	getUserById,
 	generateToken,
 };
 
