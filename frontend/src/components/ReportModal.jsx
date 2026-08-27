@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createItemReport, updateItemReport } from '../services/itemService.js';
+import { uploadImageToCloudinary } from '../services/cloudinaryService.js';
 
 const CATEGORIES = [
   'Electronics',
@@ -51,11 +52,15 @@ export default function ReportModal({
   const [contactDetails, setContactDetails] = useState('');
   const [status, setStatus] = useState('searching');
 
-  // UI state
+  // UI & Image Upload state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [savedItem, setSavedItem] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   // Populate or reset form whenever isOpen, editingItem, or initialType changes
   useEffect(() => {
@@ -103,6 +108,11 @@ export default function ReportModal({
     setDateLost(now.toISOString().slice(0, 16));
     setDescription('');
     setImageUrl('');
+    setIsUploadingImage(false);
+    setImageUploadError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     setDistinguishingDetails('');
     setContactPreference('email');
     setContactDetails('');
@@ -124,9 +134,44 @@ export default function ReportModal({
     setErrorMsg('');
   };
 
+  const handleImageFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageUploadError('');
+    setIsUploadingImage(true);
+
+    try {
+      const uploadedUrl = await uploadImageToCloudinary(file);
+      setImageUrl(uploadedUrl);
+      setImageUploadError('');
+    } catch (err) {
+      console.error('Image upload error:', err);
+      setImageUploadError(err.message || 'Failed to upload image. Please try again.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageUrl('');
+    setImageUploadError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+
+    if (isUploadingImage) {
+      setErrorMsg('Please wait for the image upload to complete before submitting.');
+      return;
+    }
 
     // Frontend validation
     if (!title.trim()) {
@@ -544,23 +589,114 @@ export default function ReportModal({
                 </div>
               </div>
 
-              {/* 6. Photo URL (Optional) */}
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[#ccc3d8]">
-                  Photo Image URL (Optional)
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#958da1] text-lg">
-                    image
+              {/* 6. Photo File Upload (Optional) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-[#ccc3d8]">
+                    Item Photo (Optional)
+                  </label>
+                  <span className="text-[11px] text-[#A1A1AA]">
+                    JPG, PNG, WEBP up to 5MB
                   </span>
-                  <input
-                    type="url"
-                    placeholder="https://example.com/photo.jpg (leave blank for category photo)"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full bg-[#18181B] border border-[#3F3F46] rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-[#958da1]/50 focus:outline-none focus:border-[#7C3AED] text-sm transition-all"
-                  />
                 </div>
+
+                {/* Hidden native file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  onChange={handleImageFileSelect}
+                  disabled={isUploadingImage || isSubmitting}
+                  className="hidden"
+                />
+
+                {/* Upload Error Banner */}
+                {imageUploadError && (
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center justify-between gap-2 animate-in fade-in duration-150">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-sm text-red-400">error</span>
+                      <span>{imageUploadError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setImageUploadError('')}
+                      className="text-red-400 hover:text-white"
+                    >
+                      <span className="material-symbols-outlined text-xs">close</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* 3 possible states: Uploaded Preview, Uploading in Progress, or Upload Button */}
+                {imageUrl ? (
+                  <div className="relative rounded-2xl bg-[#18181B] border border-[#3F3F46] p-3 flex items-center gap-4 group">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#0d0d10] flex-shrink-0 border border-[#3F3F46] flex items-center justify-center p-1">
+                      <img
+                        src={imageUrl}
+                        alt="Uploaded item preview"
+                        className="w-full h-full object-contain rounded-lg"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                        <span className="material-symbols-outlined text-base">check_circle</span>
+                        <span>Photo Uploaded</span>
+                      </div>
+                      <p className="text-[11px] text-[#A1A1AA] truncate mt-0.5" title={imageUrl}>
+                        {imageUrl}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage || isSubmitting}
+                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#d2bbff] hover:text-white text-xs font-semibold border border-white/10 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        disabled={isUploadingImage || isSubmitting}
+                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 transition-colors cursor-pointer disabled:opacity-50"
+                        title="Remove photo"
+                      >
+                        <span className="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : isUploadingImage ? (
+                  <div className="rounded-2xl bg-[#18181B] border border-[#7C3AED]/50 p-5 text-center flex flex-col items-center justify-center gap-2.5">
+                    <span className="material-symbols-outlined text-2xl text-[#d2bbff] animate-spin">progress_activity</span>
+                    <div className="text-xs">
+                      <p className="font-bold text-white">Uploading image to Cloudinary...</p>
+                      <p className="text-[#A1A1AA] text-[11px] mt-0.5">Optimizing and securing your image file</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-2xl bg-[#18181B] border border-dashed border-[#3F3F46] hover:border-[#7C3AED] hover:bg-[#1f1d24] transition-all p-5 text-center cursor-pointer flex flex-col items-center justify-center gap-2 group"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white/5 group-hover:bg-[#7C3AED]/20 text-[#958da1] group-hover:text-[#d2bbff] flex items-center justify-center transition-colors">
+                      <span className="material-symbols-outlined text-xl">cloud_upload</span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white group-hover:text-[#d2bbff] transition-colors">
+                        Click to select an image from your computer
+                      </p>
+                      <p className="text-[11px] text-[#A1A1AA] mt-0.5">
+                        Leave empty to automatically use default category image
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 7. Contact Preference & Details */}
@@ -613,7 +749,7 @@ export default function ReportModal({
                 )}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isUploadingImage}
                   className={`py-4 rounded-2xl text-white font-bold text-base hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xl flex-1 ${
                     isFound
                       ? 'bg-gradient-to-r from-emerald-600 to-teal-500 shadow-[0_0_20px_rgba(52,211,153,0.3)]'
@@ -624,6 +760,11 @@ export default function ReportModal({
                     <>
                       <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
                       <span>{isEditMode ? 'Saving Changes...' : 'Submitting & Indexing Report...'}</span>
+                    </>
+                  ) : isUploadingImage ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
+                      <span>Uploading Image...</span>
                     </>
                   ) : (
                     <>

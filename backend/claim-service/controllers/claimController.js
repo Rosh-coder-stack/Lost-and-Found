@@ -32,6 +32,8 @@ const formatClaimForUser = (claimDoc, currentUserId) => {
  * @route   POST /api/v1/claims
  * @access  Private (Authenticated User only)
  */
+
+
 const createClaim = async (req, res) => {
   try {
     const claimantId = req.user.id || req.user._id;
