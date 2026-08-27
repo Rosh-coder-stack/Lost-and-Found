@@ -162,18 +162,18 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
                   onClick={() => onSelectItem(item)}
                   className="glass-card rounded-2xl overflow-hidden flex flex-col cursor-pointer group hover:border-[#7C3AED] transition-all bg-[#18181B]/70 border border-[#27272A]"
                 >
-                  <div className="h-36 w-full bg-[#201f22] relative overflow-hidden">
+                  <div className="h-44 w-full bg-[#0d0d10] relative overflow-hidden flex items-center justify-center border-b border-[#27272A]">
                     <img 
                       src={image} 
                       alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
                         e.target.src = CATEGORY_DEFAULT_IMAGES[item.category] || CATEGORY_DEFAULT_IMAGES['Other'];
                       }}
                     />
 
                     {/* Top Left: Lost vs Found badge */}
-                    <div className="absolute top-3 left-3">
+                    <div className="absolute top-3 left-3 z-10 pointer-events-none">
                       {isFound ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/90 text-white shadow-md backdrop-blur-md">
                           <span className="material-symbols-outlined text-xs">volunteer_activism</span>
@@ -187,10 +187,10 @@ export default function BrowseModal({ isOpen, onClose, items = [], onSelectItem 
                       )}
                     </div>
 
-                    <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg border border-white/10">
+                    <div className="absolute top-3 right-3 z-10 pointer-events-none bg-black/60 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg border border-white/10">
                       {status}
                     </div>
-                    <div className="absolute bottom-3 left-3">
+                    <div className="absolute bottom-3 left-3 z-10 pointer-events-none">
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-black/60 backdrop-blur-md text-white/90 border border-white/10">
                         {item.category || 'Belonging'}
                       </span>

@@ -265,11 +265,11 @@ export default function ItemDetailsModal({
         </div>
 
         {/* Item Image */}
-        <div className="w-full h-56 rounded-2xl overflow-hidden bg-[#201f22] relative">
+        <div className="w-full h-64 sm:h-72 md:h-80 rounded-2xl overflow-hidden bg-[#0d0d10] relative flex items-center justify-center border border-[#3F3F46]/60 p-2">
           <img
             src={image}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain rounded-xl"
             onError={(e) => {
               e.target.src = CATEGORY_DEFAULT_IMAGES[item.category] || CATEGORY_DEFAULT_IMAGES['Other'];
             }}

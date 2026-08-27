@@ -655,19 +655,18 @@ export default function DashboardPage({
                         className="glass-card rounded-2xl overflow-hidden flex flex-col group cursor-pointer border border-[#27272A] hover:border-[#7C3AED]/70 hover:shadow-[0_10px_30px_-10px_rgba(124,58,237,0.3)] transition-all duration-300 bg-[#131316]/80"
                       >
                         {/* Thumbnail */}
-                        <div className="h-44 w-full bg-[#18181B] relative overflow-hidden">
+                        <div className="h-48 w-full bg-[#0d0d10] relative overflow-hidden flex items-center justify-center border-b border-[#27272A]">
                           <img
                             src={report.image}
                             alt={report.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
                               e.target.src = CATEGORY_DEFAULT_IMAGES[report.category] || CATEGORY_DEFAULT_IMAGES['Other'];
                             }}
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#131316] via-transparent to-transparent opacity-80"></div>
 
                           {/* Top Badges */}
-                          <div className="absolute top-3 left-3">
+                          <div className="absolute top-3 left-3 z-10 pointer-events-none">
                             {report.type === 'found' ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/90 text-white shadow-md backdrop-blur-md">
                                 <span className="material-symbols-outlined text-[13px]">volunteer_activism</span>
@@ -681,7 +680,7 @@ export default function DashboardPage({
                             )}
                           </div>
 
-                          <div className="absolute top-3 right-3">
+                          <div className="absolute top-3 right-3 z-10 pointer-events-none">
                             {report.statusType === 'match' ? (
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#7C3AED] text-white shadow-lg border border-purple-400/30">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -700,7 +699,7 @@ export default function DashboardPage({
                             )}
                           </div>
 
-                          <div className="absolute bottom-3 left-3">
+                          <div className="absolute bottom-3 left-3 z-10 pointer-events-none">
                             <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-black/60 backdrop-blur-md text-white/90 border border-white/10">
                               {report.category || 'Belonging'}
                             </span>
