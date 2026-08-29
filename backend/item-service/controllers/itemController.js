@@ -1,7 +1,27 @@
 const mongoose = require('mongoose');
 const Item = require('../models/Item');
+const { getRedisClient } = require('../config/redis');
+
+const ITEMS_CACHE_KEY = 'items:all';
+const CACHE_TTL_SECONDS = 300; // 5 minutes TTL
+
+/**
+ * Invalidate items:all cache key in Redis
+ */
+const invalidateItemsCache = async () => {
+  try {
+    const redisClient = getRedisClient();
+    if (redisClient && redisClient.isOpen) {
+      await redisClient.del(ITEMS_CACHE_KEY);
+      console.log(`[Item Service] Cache invalidated: ${ITEMS_CACHE_KEY}`);
+    }
+  } catch (err) {
+    console.error(`[Item Service] Redis error invalidating cache (${ITEMS_CACHE_KEY}): ${err.message}`);
+  }
+};
 
 // Default category images for placeholder fallback
+
 const CATEGORY_DEFAULT_IMAGES = {
   'Electronics': 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=600&auto=format&fit=crop&q=80',
   'Wallets & Bags': 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=600&auto=format&fit=crop&q=80',
@@ -74,6 +94,9 @@ const createLostItem = async (req, res) => {
       reporterEmail: req.user.email || '',
     });
 
+    // Invalidate cached items list on creation
+    await invalidateItemsCache();
+
     return res.status(201).json({
       success: true,
       message: `${itemType === 'found' ? 'Found' : 'Lost'} item report created successfully`,
@@ -133,6 +156,36 @@ const getAllItems = async (req, res) => {
   try {
     const { category, status, type, search } = req.query;
 
+    const isFiltered = Boolean(
+      (category && category !== 'All') ||
+      (status && status !== 'All') ||
+      (type && type !== 'All') ||
+      (search && search.trim())
+    );
+
+    // 1. Check Redis cache (Cache-Aside pattern for unfiltered items list)
+    if (!isFiltered) {
+      try {
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isOpen) {
+          const cachedData = await redisClient.get(ITEMS_CACHE_KEY);
+          if (cachedData) {
+            console.log(`[Item Service] Cache HIT: ${ITEMS_CACHE_KEY}`);
+            const cachedItems = JSON.parse(cachedData);
+            return res.status(200).json({
+              success: true,
+              count: cachedItems.length,
+              data: cachedItems,
+            });
+          }
+          console.log(`[Item Service] Cache MISS: ${ITEMS_CACHE_KEY}`);
+        }
+      } catch (redisError) {
+        console.error(`[Item Service] Redis error / fallback to MongoDB: ${redisError.message}`);
+      }
+    }
+
+    // 2. Query MongoDB
     const filter = {};
     if (category && category !== 'All') {
       filter.category = category;
@@ -143,7 +196,7 @@ const getAllItems = async (req, res) => {
     if (type && type !== 'All') {
       filter.type = type.toLowerCase();
     }
-    if (search && search.trim()) {//important
+    if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
       filter.$or = [
         { title: searchRegex },
@@ -155,6 +208,20 @@ const getAllItems = async (req, res) => {
 
     const items = await Item.find(filter).sort({ createdAt: -1 }).limit(100);
 
+    // 3. Save successful result to Redis cache
+    if (!isFiltered) {
+      try {
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isOpen) {
+          await redisClient.set(ITEMS_CACHE_KEY, JSON.stringify(items), { EX: CACHE_TTL_SECONDS });
+          console.log(`[Item Service] Cache set: ${ITEMS_CACHE_KEY} (TTL: ${CACHE_TTL_SECONDS}s)`);
+        }
+      } catch (redisSetError) {
+        console.error(`[Item Service] Redis error setting cache for ${ITEMS_CACHE_KEY}: ${redisSetError.message}`);
+      }
+    }
+
+    // 4. Return response
     return res.status(200).json({
       success: true,
       count: items.length,
@@ -295,6 +362,9 @@ const updateItemReport = async (req, res) => {
     // 4. Save updated document
     const updatedItem = await item.save();
 
+    // Invalidate cached items list on update
+    await invalidateItemsCache();
+
     return res.status(200).json({
       success: true,
       message: `${updatedItem.type === 'found' ? 'Found' : 'Lost'} item report updated successfully`,
@@ -348,6 +418,9 @@ const deleteItemReport = async (req, res) => {
 
     // 3. Delete the item from MongoDB
     await Item.findByIdAndDelete(id);
+
+    // Invalidate cached items list on delete
+    await invalidateItemsCache();
 
     return res.status(200).json({
       success: true,
