@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const dns = require('dns');
 
 // Configure public DNS servers to resolve MongoDB Atlas SRV records reliably on Windows
@@ -7,6 +6,8 @@ try {
 } catch (e) {
   // Ignore fallback error if DNS modification fails
 }
+
+const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
