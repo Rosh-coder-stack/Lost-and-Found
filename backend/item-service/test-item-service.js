@@ -174,16 +174,47 @@ async function runTests() {
     console.assert(globalData.data.some((item) => item._id === createdItemId), 'Created item not visible in global search');
     console.log('✅ Global browse endpoint passed\n');
 
-    // Test 9: Get Single Item by ID
-    console.log('Test 9: Fetch Single Item by ID (200 expected)');
-    const singleRes = await fetch(`${baseUrl}/${createdItemId}`);
-    const singleData = await singleRes.json();
-    console.assert(singleRes.status === 200, `Expected 200 but got ${singleRes.status}`);
-    console.assert(singleData.data._id === createdItemId, 'Item ID mismatch');
-    console.log('✅ Get single item passed\n');
+    // Test 9: Get Single Item by ID - First GET (Cache MISS & SET in Redis with 600s TTL)
+    console.log('Test 9: Single-Item Redis Cache MISS & SET on GET /items/:id');
+    const itemKey = `item:${createdItemId}`;
+    if (redisClient && redisClient.isOpen) {
+      await redisClient.del(itemKey);
+    }
+    const singleRes1 = await fetch(`${baseUrl}/${createdItemId}`);
+    const singleData1 = await singleRes1.json();
+    console.assert(singleRes1.status === 200, `Expected 200 but got ${singleRes1.status}`);
+    console.assert(singleData1.data._id === createdItemId, 'Item ID mismatch');
 
-    // Test 10: User B attempts to UPDATE User A report (403 Forbidden expected)
-    console.log('Test 10: User B Unauthorized Update Attempt (403 Forbidden expected)');
+    if (redisClient && redisClient.isOpen) {
+      const cachedItemVal = await redisClient.get(itemKey);
+      console.assert(cachedItemVal !== null, `Expected ${itemKey} to be set in Redis`);
+      const singleTtl = await redisClient.ttl(itemKey);
+      console.assert(singleTtl > 0 && singleTtl <= 600, `Expected TTL between 1 and 600 seconds, got ${singleTtl}`);
+      console.log(`✅ Single-item Redis Cache SET verified with key '${itemKey}' and TTL: ${singleTtl}s\n`);
+    }
+
+    // Test 10: Get Single Item by ID - Second GET (Cache HIT)
+    console.log('Test 10: Single-Item Redis Cache HIT on GET /items/:id');
+    const singleRes2 = await fetch(`${baseUrl}/${createdItemId}`);
+    const singleData2 = await singleRes2.json();
+    console.assert(singleRes2.status === 200, `Expected 200 but got ${singleRes2.status}`);
+    console.assert(singleData2.data._id === singleData1.data._id, 'Cached Item ID mismatch');
+    console.assert(singleData2.data.title === singleData1.data.title, 'Cached Item title mismatch');
+    console.log('✅ Single-item Redis Cache HIT returned successfully\n');
+
+    // Test 11: 404 response must not be cached in Redis
+    console.log('Test 11: Non-existent item returns 404 and is NOT cached in Redis');
+    const fakeId = '67ab00000000000000000000';
+    const fakeRes = await fetch(`${baseUrl}/${fakeId}`);
+    console.assert(fakeRes.status === 404, `Expected 404 but got ${fakeRes.status}`);
+    if (redisClient && redisClient.isOpen) {
+      const fakeCachedVal = await redisClient.get(`item:${fakeId}`);
+      console.assert(fakeCachedVal === null, '404 response must not be cached in Redis');
+      console.log('✅ Verified 404 response is NOT cached in Redis\n');
+    }
+
+    // Test 12: User B attempts to UPDATE User A report (403 Forbidden expected)
+    console.log('Test 12: User B Unauthorized Update Attempt (403 Forbidden expected)');
     const unauthUpdateRes = await fetch(`${baseUrl}/${createdItemId}`, {
       method: 'PUT',
       headers: {
@@ -195,10 +226,11 @@ async function runTests() {
     console.assert(unauthUpdateRes.status === 403, `Expected 403 Forbidden but got ${unauthUpdateRes.status}`);
     console.log('✅ Unauthorized update protection passed\n');
 
-    // Test 11: User A UPDATES their own report (200 expected & Cache Invalidation)
-    console.log('Test 11: User A Authorized Update (200 expected & Cache Invalidation)');
-    // Repopulate cache first
+    // Test 13: User A UPDATES their own report (200 expected & Cache Invalidation of both item:<id> and items:all)
+    console.log('Test 13: User A Authorized Update (200 expected & Cache Invalidation)');
+    // Repopulate both caches first
     await fetch(baseUrl);
+    await fetch(`${baseUrl}/${createdItemId}`);
     const authUpdateRes = await fetch(`${baseUrl}/${createdItemId}`, {
       method: 'PUT',
       headers: {
@@ -217,16 +249,18 @@ async function runTests() {
     console.assert(authUpdateData.data.status === 'matched', 'Status was not updated');
     console.assert(authUpdateData.data.statusType === 'match', 'StatusType was not synced to match');
 
-    // Verify cache invalidation occurred
+    // Verify cache invalidation occurred for both items:all and item:<id>
     if (redisClient && redisClient.isOpen) {
-      const cachedAfterUpdate = await redisClient.get('items:all');
-      console.assert(cachedAfterUpdate === null, 'Cache key items:all should be invalidated after item update');
-      console.log('✅ Cache invalidation after update verified');
+      const cachedListAfterUpdate = await redisClient.get('items:all');
+      const cachedItemAfterUpdate = await redisClient.get(itemKey);
+      console.assert(cachedListAfterUpdate === null, 'Cache key items:all should be invalidated after item update');
+      console.assert(cachedItemAfterUpdate === null, `Cache key ${itemKey} should be invalidated after item update`);
+      console.log(`✅ Cache invalidation after update verified for both 'items:all' and '${itemKey}'\n`);
     }
     console.log('✅ Authorized update passed\n');
 
-    // Test 12: User B attempts to DELETE User A report (403 Forbidden expected)
-    console.log('Test 12: User B Unauthorized Delete Attempt (403 Forbidden expected)');
+    // Test 14: User B attempts to DELETE User A report (403 Forbidden expected)
+    console.log('Test 14: User B Unauthorized Delete Attempt (403 Forbidden expected)');
     const unauthDeleteRes = await fetch(`${baseUrl}/${createdItemId}`, {
       method: 'DELETE',
       headers: {
@@ -236,10 +270,11 @@ async function runTests() {
     console.assert(unauthDeleteRes.status === 403, `Expected 403 Forbidden but got ${unauthDeleteRes.status}`);
     console.log('✅ Unauthorized delete protection passed\n');
 
-    // Test 13: User A DELETES their own report (200 expected & Cache Invalidation)
-    console.log('Test 13: User A Authorized Delete (200 expected & Cache Invalidation)');
-    // Repopulate cache first
+    // Test 15: User A DELETES their own report (200 expected & Cache Invalidation of both item:<id> and items:all)
+    console.log('Test 15: User A Authorized Delete (200 expected & Cache Invalidation)');
+    // Repopulate caches first
     await fetch(baseUrl);
+    await fetch(`${baseUrl}/${createdItemId}`);
     const authDeleteRes = await fetch(`${baseUrl}/${createdItemId}`, {
       method: 'DELETE',
       headers: {
@@ -250,19 +285,52 @@ async function runTests() {
     console.assert(authDeleteRes.status === 200, `Expected 200 but got ${authDeleteRes.status}`);
     console.assert(authDeleteData.success === true, 'Delete success flag not true');
 
-    // Verify cache invalidation occurred
+    // Verify cache invalidation occurred for both items:all and item:<id>
     if (redisClient && redisClient.isOpen) {
-      const cachedAfterDelete = await redisClient.get('items:all');
-      console.assert(cachedAfterDelete === null, 'Cache key items:all should be invalidated after item delete');
-      console.log('✅ Cache invalidation after delete verified');
+      const cachedListAfterDelete = await redisClient.get('items:all');
+      const cachedItemAfterDelete = await redisClient.get(itemKey);
+      console.assert(cachedListAfterDelete === null, 'Cache key items:all should be invalidated after item delete');
+      console.assert(cachedItemAfterDelete === null, `Cache key ${itemKey} should be invalidated after item delete`);
+      console.log(`✅ Cache invalidation after delete verified for both 'items:all' and '${itemKey}'\n`);
     }
     console.log('✅ Authorized delete passed\n');
 
-    // Test 14: Verify item is gone (404 expected)
-    console.log('Test 14: Verify deleted item returns 404');
+    // Test 16: Verify item is gone (404 expected)
+    console.log('Test 16: Verify deleted item returns 404');
     const verifyRes = await fetch(`${baseUrl}/${createdItemId}`);
     console.assert(verifyRes.status === 404, `Expected 404 Not Found but got ${verifyRes.status}`);
     console.log('✅ 404 check for deleted item passed\n');
+
+    // Test 17: Graceful Redis fallback test (MongoDB fallback on Redis failure)
+    console.log('Test 17: Verify GET /items/:id works seamlessly when Redis is unavailable (Fallback)');
+    const fallbackItem = await Item.create({
+      type: 'found',
+      title: 'Fallback Test Umbrella',
+      category: 'Other',
+      description: 'Black umbrella left in lobby',
+      location: 'Main Lobby',
+      dateLost: new Date(),
+      status: 'searching',
+      userId: userAId,
+    });
+    // Temporarily simulate Redis error / disconnect
+    const originalGet = redisClient ? redisClient.get : null;
+    if (redisClient) {
+      redisClient.get = async () => {
+        throw new Error('Simulated Redis network failure');
+      };
+    }
+    const fallbackRes = await fetch(`${baseUrl}/${fallbackItem._id}`);
+    const fallbackData = await fallbackRes.json();
+    console.assert(fallbackRes.status === 200, `Expected 200 on Redis error fallback but got ${fallbackRes.status}`);
+    console.assert(fallbackData.data.title === 'Fallback Test Umbrella', 'Title mismatch on fallback');
+    console.log('✅ Graceful Redis fallback to MongoDB verified\n');
+
+    // Restore Redis get method & cleanup
+    if (redisClient && originalGet) {
+      redisClient.get = originalGet;
+    }
+    await Item.findByIdAndDelete(fallbackItem._id);
 
     console.log('🎉 ALL INTEGRATION, CRUD, SECURITY & REDIS CACHING TESTS PASSED PERFECTLY!');
   } catch (err) {

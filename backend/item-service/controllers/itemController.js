@@ -3,7 +3,14 @@ const Item = require('../models/Item');
 const { getRedisClient } = require('../config/redis');
 
 const ITEMS_CACHE_KEY = 'items:all';
-const CACHE_TTL_SECONDS = 300; // 5 minutes TTL
+const CACHE_TTL_SECONDS = 300; // 5 minutes TTL for items list
+const ITEM_CACHE_PREFIX = 'item:';
+const SINGLE_ITEM_CACHE_TTL_SECONDS = 600; // 10 minutes (600s) TTL for single item
+
+/**
+ * Helper to build single-item cache key
+ */
+const getItemCacheKey = (id) => `${ITEM_CACHE_PREFIX}${id}`;
 
 /**
  * Invalidate items:all cache key in Redis
@@ -17,6 +24,22 @@ const invalidateItemsCache = async () => {
     }
   } catch (err) {
     console.error(`[Item Service] Redis error invalidating cache (${ITEMS_CACHE_KEY}): ${err.message}`);
+  }
+};
+
+/**
+ * Invalidate single item cache key in Redis
+ */
+const invalidateItemCache = async (itemId) => {
+  try {
+    const redisClient = getRedisClient();
+    if (redisClient && redisClient.isOpen) {
+      const itemKey = getItemCacheKey(itemId);
+      await redisClient.del(itemKey);
+      console.log(`[Item Service] Cache invalidated: ${itemKey}`);
+    }
+  } catch (err) {
+    console.error(`[Item Service] Redis error invalidating cache (${getItemCacheKey(itemId)}): ${err.message}`);
   }
 };
 
@@ -244,14 +267,38 @@ const getAllItems = async (req, res) => {
  */
 const getItemById = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid item report ID format',
       });
     }
 
-    const item = await Item.findById(req.params.id);
+    const itemCacheKey = getItemCacheKey(id);
+
+    // 1. Check Redis cache (Cache-Aside pattern for single item)
+    try {
+      const redisClient = getRedisClient();
+      if (redisClient && redisClient.isOpen) {
+        const cachedData = await redisClient.get(itemCacheKey);
+        if (cachedData) {
+          console.log(`[Item Service] Cache HIT: ${itemCacheKey}`);
+          const cachedItem = JSON.parse(cachedData);
+          return res.status(200).json({
+            success: true,
+            data: cachedItem,
+          });
+        }
+        console.log(`[Item Service] Cache MISS: ${itemCacheKey}`);
+      }
+    } catch (redisError) {
+      console.error(`[Item Service] Redis error / fallback to MongoDB: ${redisError.message}`);
+    }
+
+    // 2. Query MongoDB
+    const item = await Item.findById(id);
 
     if (!item) {
       return res.status(404).json({
@@ -260,6 +307,18 @@ const getItemById = async (req, res) => {
       });
     }
 
+    // 3. Save successful result to Redis cache
+    try {
+      const redisClient = getRedisClient();
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.set(itemCacheKey, JSON.stringify(item), { EX: SINGLE_ITEM_CACHE_TTL_SECONDS });
+        console.log(`[Item Service] Cache set: ${itemCacheKey} (TTL: ${SINGLE_ITEM_CACHE_TTL_SECONDS}s)`);
+      }
+    } catch (redisSetError) {
+      console.error(`[Item Service] Redis error setting cache for ${itemCacheKey}: ${redisSetError.message}`);
+    }
+
+    // 4. Return response
     return res.status(200).json({
       success: true,
       data: item,
@@ -362,7 +421,8 @@ const updateItemReport = async (req, res) => {
     // 4. Save updated document
     const updatedItem = await item.save();
 
-    // Invalidate cached items list on update
+    // Invalidate single-item and list cache on update
+    await invalidateItemCache(id);
     await invalidateItemsCache();
 
     return res.status(200).json({
@@ -419,7 +479,8 @@ const deleteItemReport = async (req, res) => {
     // 3. Delete the item from MongoDB
     await Item.findByIdAndDelete(id);
 
-    // Invalidate cached items list on delete
+    // Invalidate single-item and list cache on delete
+    await invalidateItemCache(id);
     await invalidateItemsCache();
 
     return res.status(200).json({
