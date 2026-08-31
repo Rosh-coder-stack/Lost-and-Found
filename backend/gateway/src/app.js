@@ -7,6 +7,9 @@ const proxyRoutes = require('../routes/proxy.routes');
 
 const app = express();
 
+// Enable trust proxy for reverse proxies / load balancers
+app.set('trust proxy', 1);
+
 // 1. Enable Cross-Origin Resource Sharing (CORS) for all incoming origins
 app.use(cors());
 
