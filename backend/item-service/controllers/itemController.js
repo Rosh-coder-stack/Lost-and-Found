@@ -15,6 +15,7 @@ const getItemCacheKey = (id) => `${ITEM_CACHE_PREFIX}${id}`;
 /**
  * Invalidate items:all cache key in Redis
  */
+
 const invalidateItemsCache = async () => {
   try {
     const redisClient = getRedisClient();

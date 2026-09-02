@@ -13,6 +13,7 @@ const googleAuth = (req, res, next) => {
   })(req, res, next);
 };
 
+
 /**
  * @desc    Google OAuth 2.0 callback endpoint
  * @route   GET /api/v1/auth/google/callback
@@ -51,7 +52,7 @@ const googleAuthCallback = (req, res, next) => {
         message,
       });
     }
-
+  
     // 1. Generate JWT token using existing token generator
     const token = generateToken(user);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';

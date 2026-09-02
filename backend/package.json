@@ -1,0 +1,14 @@
+{
+  "name": "lost-and-found-backend",
+  "version": "1.0.0",
+  "description": "Backend services and shared modules for Lost & Found",
+  "scripts": {
+    "test:producer": "node test-producer.js",
+    "test:consumer": "node test-consumer.js",
+    "test:rabbitmq": "node test-rabbitmq-flow.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "dotenv": "^16.4.7"
+  }
+}
