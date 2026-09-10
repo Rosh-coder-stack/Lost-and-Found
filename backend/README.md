@@ -13,6 +13,7 @@ backend/
 ├── user-service/           # User Profiles & Account Management Service
 ├── item-service/           # Lost & Found Items Management Service
 ├── claim-service/          # Item Claims & Verification Service
+├── notification-service/   # Notification & Event Consumer Service
 ├── shared/                 # Reusable cross-service utilities & middleware
 │   ├── config/             # Shared configurations & constants
 │   ├── middleware/         # Shared express middlewares (error handling, auth check, etc.)
@@ -40,7 +41,10 @@ backend/
 ### 5. Claim Service (`claim-service/`)
 - Handles claim requests, ownership verification workflows, proof of ownership submissions, and status updates between item owners and finders.
 
-### 6. Shared Module (`shared/`)
+### 6. Notification Service (`notification-service/`)
+- Consumes asynchronous notification events (such as password reset requests) over RabbitMQ topic exchanges and manages notification delivery workflows.
+
+### 7. Shared Module (`shared/`)
 - Contains cross-cutting concerns to adhere to DRY (Don't Repeat Yourself) principles across all microservices without tight coupling.
 
 ---

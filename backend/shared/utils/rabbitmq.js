@@ -117,6 +117,108 @@ async function publishToQueue(queueName, message, options = {}) {
 }
 
 /**
+ * Publish a message to a RabbitMQ exchange with a routing key.
+ * @param {string} exchange Name of the exchange
+ * @param {string} routingKey Routing key
+ * @param {object|string} message Message payload
+ * @param {string} [exchangeType='topic'] Type of the exchange (topic, direct, fanout)
+ * @param {object} [options] Publishing options
+ * @returns {Promise<boolean>}
+ */
+async function publishToExchange(exchange, routingKey, message, exchangeType = 'topic', options = {}) { 
+  if (typeof exchangeType === 'object' && exchangeType !== null) {
+    options = exchangeType;
+    exchangeType = options.exchangeType || 'topic';
+  }
+
+  const ch = await getChannel();
+
+  // Ensure exchange exists and is durable
+  await ch.assertExchange(exchange, exchangeType, { durable: true });
+
+  const content = Buffer.from(
+    typeof message === 'string' ? message : JSON.stringify(message)
+  );
+
+  const publishOptions = {
+    persistent: true, // message survives broker restart
+    contentType: 'application/json',
+    timestamp: Date.now(),
+    ...options,
+    headers: {
+      ...(options.headers || {})
+    }
+  };
+
+  const sent = ch.publish(exchange, routingKey, content, publishOptions);
+  return sent;
+}
+
+/**
+ * Publish a message to a retry exchange with retry metadata headers.
+ * @param {string} exchange Name of the retry exchange
+ * @param {string} routingKey Routing key
+ * @param {object|string} message Message payload
+ * @param {object} [metadata] Retry headers metadata
+ * @param {number} [metadata.retryCount] Current retry count
+ * @param {number} [metadata.maxRetries] Max retry limit
+ * @param {string} [metadata.originalRoutingKey] Original routing key
+ * @param {string} [metadata.originalExchange] Original exchange
+ * @param {string} [metadata.errorMessage] Error message
+ * @param {string} [metadata.failedAt] Timestamp of failure
+ * @param {object} [options] Additional publish options
+ * @returns {Promise<boolean>}
+ */
+async function publishToRetry(exchange, routingKey, message, metadata = {}, options = {}) {
+  const headers = {
+    'x-retry-count': metadata.retryCount !== undefined ? metadata.retryCount : 1,
+    'x-max-retries': metadata.maxRetries !== undefined ? metadata.maxRetries : 3,
+    'x-original-routing-key': metadata.originalRoutingKey || routingKey,
+    'x-original-exchange': metadata.originalExchange || '',
+    'x-error-message': metadata.errorMessage || '',
+    'x-failed-at': metadata.failedAt || new Date().toISOString(),
+    ...(options.headers || {})
+  };
+
+  return publishToExchange(exchange, routingKey, message, 'topic', {
+    ...options,
+    headers
+  });
+}
+
+/**
+ * Publish a message to a dead letter exchange (DLX) with failure metadata headers.
+ * @param {string} exchange Name of the DLX
+ * @param {string} routingKey Routing key
+ * @param {object|string} message Message payload
+ * @param {object} [metadata] Failure headers metadata
+ * @param {number} [metadata.retryCount] Final retry count
+ * @param {number} [metadata.maxRetries] Max retry limit
+ * @param {string} [metadata.originalRoutingKey] Original routing key
+ * @param {string} [metadata.originalExchange] Original exchange
+ * @param {string} [metadata.errorMessage] Error message
+ * @param {string} [metadata.failedAt] Timestamp of failure
+ * @param {object} [options] Additional publish options
+ * @returns {Promise<boolean>}
+ */
+async function publishToDLQ(exchange, routingKey, message, metadata = {}, options = {}) {
+  const headers = {
+    'x-retry-count': metadata.retryCount !== undefined ? metadata.retryCount : 3,
+    'x-max-retries': metadata.maxRetries !== undefined ? metadata.maxRetries : 3,
+    'x-original-routing-key': metadata.originalRoutingKey || routingKey,
+    'x-original-exchange': metadata.originalExchange || '',
+    'x-error-message': metadata.errorMessage || '',
+    'x-failed-at': metadata.failedAt || new Date().toISOString(),
+    ...(options.headers || {})
+  };
+
+  return publishToExchange(exchange, routingKey, message, 'topic', {
+    ...options,
+    headers
+  });
+}
+
+/**
  * Consume messages from a queue with manual acknowledgement (ACK).
  * 
  * - Acknowledges (ACK) ONLY after messageHandler successfully resolves.
@@ -160,16 +262,22 @@ async function consumeFromQueue(queueName, messageHandler, options = {}) {
         await messageHandler(parsedContent, msg);
 
         // MANUAL ACK: Acknowledge only after successful processing
-        ch.ack(msg);
+        if (!msg._acknowledged) {
+          ch.ack(msg);
+          msg._acknowledged = true;
+        }
       } catch (handlerError) {
         console.error(`❌ [Consumer Error] Failed processing message from '${queueName}':`, handlerError.message);
         
         // Message is NOT acknowledged on processing failure
-        if (options.requeueOnError) {
-          ch.nack(msg, false, true); // Requeue for retry if explicitly requested
-        } else {
-          // Reject without ack (or unacknowledged if no action taken)
-          ch.nack(msg, false, false);
+        if (!msg._acknowledged) {
+          if (options.requeueOnError) {
+            ch.nack(msg, false, true); // Requeue for retry if explicitly requested
+          } else {
+            // Reject without ack (or unacknowledged if no action taken)
+            ch.nack(msg, false, false);
+          }
+          msg._acknowledged = true;
         }
       }
     },
@@ -185,5 +293,8 @@ module.exports = {
   getConnection,
   closeRabbitMQ,
   publishToQueue,
+  publishToExchange,
+  publishToRetry,
+  publishToDLQ,
   consumeFromQueue
 };
