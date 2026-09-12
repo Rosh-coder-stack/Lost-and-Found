@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const Claim = require('../models/Claim');
 const { fetchItemById, updateItemStatus } = require('../services/itemServiceClient');
+const { publishToExchange } = require('../../shared/utils/rabbitmq');
+const rabbitmqConfig = require('../../shared/config/rabbitmq');
 
 /**
  * Format claim object adhering to strict privacy rules:
@@ -165,6 +167,38 @@ const createClaim = async (req, res) => {
       proofMessage: proofMessage.trim(),
       messages: [initialMessage],
     });
+
+    // 7. Publish CLAIM_SUBMITTED event to notification_exchange via RabbitMQ
+    const claimId = newClaim._id;
+    const itemTitle = newClaim.itemTitle;
+    const itemType = newClaim.itemType;
+    const reporterEmail = newClaim.reporterEmail;
+    const recipientName = newClaim.reporterName;
+    const proofPreview = newClaim.proofMessage;
+    const submittedAt = newClaim.createdAt;
+
+    try {
+      await publishToExchange(
+        rabbitmqConfig.exchanges?.NOTIFICATION_EXCHANGE || 'notification_exchange',
+        'notification.claim_submitted',
+        {
+          event: 'CLAIM_SUBMITTED',
+          claimId,
+          itemId,
+          itemTitle,
+          itemType,
+          recipientEmail: reporterEmail,
+          recipientName,
+          claimantName,
+          proofPreview,
+          submittedAt,
+        },
+        'topic'
+      );
+      console.log(`[Claim Service] Published CLAIM_SUBMITTED event for claim ${claimId} to notification_exchange`);
+    } catch (publishError) {
+      console.error(`[Claim Service] Failed to publish CLAIM_SUBMITTED event to RabbitMQ: ${publishError.message}`);
+    }
 
     return res.status(201).json({
       success: true,

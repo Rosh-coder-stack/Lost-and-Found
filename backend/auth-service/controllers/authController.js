@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { sendPasswordResetEmail } = require('../services/emailService');
+const { publishToExchange } = require('../../shared/utils/rabbitmq');
+const rabbitmqConfig = require('../../shared/config/rabbitmq');
 
 const generateToken = (user) => {
 	return jwt.sign(
@@ -20,6 +21,7 @@ const generateToken = (user) => {
 		}
 	);
 };
+
 
 /**
  * @desc    Register a new user
@@ -224,15 +226,24 @@ const forgotPassword = async (req, res) => {
 		user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
 		await user.save();
 
-		// 5. Send Email containing password reset link
+		// 5. Publish PASSWORD_RESET_REQUESTED event to notification_exchange via RabbitMQ
 		try {
-			await sendPasswordResetEmail(user.email, resetToken);
-		} catch (emailError) {
-			console.error(`Failed to send password reset email: ${emailError.message}`);
+			await publishToExchange(
+				rabbitmqConfig.exchanges.NOTIFICATION_EXCHANGE,
+				rabbitmqConfig.routingKeys.NOTIFICATION_PASSWORD_RESET,
+				{
+					event: 'PASSWORD_RESET_REQUESTED',
+					email: user.email,
+					resetToken: resetToken,
+				},
+				'topic'
+			);
+		} catch (publishError) {
+			console.error(`Failed to publish password reset event to RabbitMQ: ${publishError.message}`);
 			return res.status(500).json({
 				success: false,
-				message: 'Failed to send password reset email. Please try again later.',
-				error: emailError.message,
+				message: 'Failed to process password reset request. Please try again later.',
+				error: publishError.message,
 			});
 		}
 
