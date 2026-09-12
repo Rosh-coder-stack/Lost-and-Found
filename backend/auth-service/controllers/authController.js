@@ -156,6 +156,14 @@ const login = async (req, res) => {
 			});
 		}
 
+		// Step 6b: Check if the user account is disabled
+		if (user.isActive === false) {
+			return res.status(403).json({
+				success: false,
+				message: 'User account is disabled',
+			});
+		}
+
 		// Step 7: Generate a JWT token using jsonwebtoken
 		const token = generateToken(user);
 
@@ -368,12 +376,173 @@ const getUserById = async (req, res) => {
 	}
 };
 
+/**
+ * @desc    Get all users with optional search filtering by name or email (Admin only)
+ * @route   GET /api/v1/auth/admin/users?search=...
+ * @access  Private (Admin)
+ */
+const getAllUsers = async (req, res) => {
+	try {
+		const { search } = req.query;
+		const queryFilter = {};
+
+		// If search query is provided, perform case-insensitive partial match on name or email
+		if (search && typeof search === 'string' && search.trim() !== '') {
+			// Escape special characters to safely build RegExp from user input
+			const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const searchRegex = new RegExp(escapedSearch, 'i');
+
+			queryFilter.$or = [
+				{ name: { $regex: searchRegex } },
+				{ email: { $regex: searchRegex } },
+			];
+		}
+
+		const users = await User.find(queryFilter)
+			.select('-password -resetPasswordToken -resetPasswordExpires')
+			.sort({ createdAt: -1 });
+
+		return res.status(200).json({
+			success: true,
+			count: users.length,
+			data: users,
+		});
+	} catch (error) {
+		console.error(`Get All Users Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error retrieving users',
+			error: error.message,
+		});
+	}
+};
+
+/**
+ * @desc    Update user status (Enable / Disable user account) (Admin only)
+ * @route   PATCH /api/v1/auth/admin/users/:id/status
+ * @access  Private (Admin)
+ */
+const updateUserStatus = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { isActive } = req.body;
+
+		// 1. Validate MongoDB Object ID format
+		if (!mongoose.Types.ObjectId.isValid(id)) {
+			return res.status(400).json({
+				success: false,
+				message: 'Invalid user ID format',
+			});
+		}
+
+		// 2. Strict boolean validation for isActive
+		if (typeof isActive !== 'boolean') {
+			return res.status(400).json({
+				success: false,
+				message: 'Invalid input: isActive must be a boolean value (true or false)',
+			});
+		}
+
+		// 3. Find target user
+		const user = await User.findById(id);
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found',
+			});
+		}
+
+		// 4. Update only isActive field and save
+		user.isActive = isActive;
+		await user.save();
+
+		// 5. Build clean, safe user representation without sensitive fields
+		const safeUser = {
+			_id: user._id,
+			id: user._id,
+			name: user.name,
+			email: user.email,
+			role: user.role,
+			isActive: user.isActive,
+			provider: user.provider,
+			createdAt: user.createdAt,
+			updatedAt: user.updatedAt,
+		};
+
+		return res.status(200).json({
+			success: true,
+			message: `User account has been ${isActive ? 'enabled' : 'disabled'} successfully`,
+			data: safeUser,
+		});
+	} catch (error) {
+		console.error(`Update User Status Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error updating user status',
+			error: error.message,
+		});
+	}
+};
+
+/**
+ * @desc    Get complete user details by ID (Admin only)
+ * @route   GET /api/v1/auth/admin/users/:id
+ * @access  Private (Admin)
+ */
+const getAdminUserById = async (req, res) => {
+	try {
+		const { id } = req.params;
+
+		// 1. Validate MongoDB Object ID format
+		if (!mongoose.Types.ObjectId.isValid(id)) {
+			return res.status(400).json({
+				success: false,
+				message: 'Invalid user ID format',
+			});
+		}
+
+		// 2. Query user excluding sensitive credentials and reset tokens
+		const user = await User.findById(id).select('-password -resetPasswordToken -resetPasswordExpires');
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found',
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			data: {
+				_id: user._id,
+				id: user._id,
+				name: user.name,
+				email: user.email,
+				role: user.role,
+				isActive: user.isActive,
+				provider: user.provider,
+				createdAt: user.createdAt,
+				updatedAt: user.updatedAt,
+			},
+		});
+	} catch (error) {
+		console.error(`Get Admin User By ID Error: ${error.message}`);
+		return res.status(500).json({
+			success: false,
+			message: 'Server error retrieving user details',
+			error: error.message,
+		});
+	}
+};
+
 module.exports = {
 	register,
 	login,
 	forgotPassword,
 	resetPassword,
 	getUserById,
+	getAllUsers,
+	updateUserStatus,
+	getAdminUserById,
 	generateToken,
 };
 

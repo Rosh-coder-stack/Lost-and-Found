@@ -11,13 +11,15 @@ const {
   acceptClaim,
   rejectClaim,
   resubmitClaim,
+  getAllClaims,
 } = require('../controllers/claimController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 // All claim endpoints require authentication
 router.post('/', protect, createClaim);
 router.get('/my', protect, getMyClaims);
 router.get('/requests', protect, getIncomingClaimRequests);
+router.get('/admin', protect, authorize('admin'), getAllClaims);
 router.get('/item/:itemId', protect, getClaimsForItem);
 router.get('/:claimId', protect, getClaimById);
 router.post('/:claimId/follow-up', protect, askFollowUp);

@@ -499,6 +499,104 @@ const deleteItemReport = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get all items across the platform for moderation with optional search and filters (Admin only)
+ * @route   GET /api/v1/items/admin?search=...&category=...&status=...&type=...
+ * @access  Private (Admin only)
+ */
+const getAllItemsForAdmin = async (req, res) => {
+  try {
+    const { category, status, type, search } = req.query;
+    const filter = {};
+
+    // 1. Category filter (exact match, skips 'All')
+    if (category && typeof category === 'string' && category.trim() !== '' && category.trim() !== 'All') {
+      filter.category = category.trim();
+    }
+
+    // 2. Status filter (normalized to lowercase enum values, skips 'All')
+    if (status && typeof status === 'string' && status.trim() !== '' && status.trim() !== 'All') {
+      filter.status = status.trim().toLowerCase();
+    }
+
+    // 3. Type filter ('lost' or 'found', normalized to lowercase, skips 'All')
+    if (type && typeof type === 'string' && type.trim() !== '' && type.trim() !== 'All') {
+      filter.type = type.trim().toLowerCase();
+    }
+
+    // 4. Safe case-insensitive search across title, description, location, and category
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(escapedSearch, 'i');
+
+      filter.$or = [
+        { title: { $regex: searchRegex } },
+        { description: { $regex: searchRegex } },
+        { location: { $regex: searchRegex } },
+        { category: { $regex: searchRegex } },
+      ];
+    }
+
+    // Direct MongoDB query without Redis caching and without hardcoded limits
+    const items = await Item.find(filter).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: items.length,
+      data: items,
+    });
+  } catch (error) {
+    console.error('[Item Service] Error fetching all items for admin:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error fetching items',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get single item report details (Admin only - bypasses Redis cache)
+ * @route   GET /api/v1/items/admin/:id
+ * @access  Private (Admin only)
+ */
+const getItemByIdForAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Validate MongoDB Object ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid item report ID format',
+      });
+    }
+
+    // 2. Direct MongoDB query (no Redis caching)
+    const item = await Item.findById(id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: 'Item not found',
+      });
+    }
+
+    // 3. Return complete Item document
+    return res.status(200).json({
+      success: true,
+      data: item,
+    });
+  } catch (error) {
+    console.error('[Item Service] Error fetching item for admin:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error fetching item',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createLostItem,
   createFoundItem,
@@ -507,5 +605,7 @@ module.exports = {
   getItemById,
   updateItemReport,
   deleteItemReport,
+  getAllItemsForAdmin,
+  getItemByIdForAdmin,
 };
 

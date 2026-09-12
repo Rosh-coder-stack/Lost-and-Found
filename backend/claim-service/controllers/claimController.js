@@ -827,6 +827,30 @@ const resubmitClaim = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get all claims across the platform (Admin only)
+ * @route   GET /api/v1/claims/admin
+ * @access  Private (Admin only)
+ */
+const getAllClaims = async (req, res) => {
+  try {
+    const claims = await Claim.find().sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: claims.length,
+      data: claims,
+    });
+  } catch (error) {
+    console.error('[Claim Service] Error fetching all claims:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error fetching all claims',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createClaim,
   getClaimById,
@@ -838,4 +862,5 @@ module.exports = {
   acceptClaim,
   rejectClaim,
   resubmitClaim,
+  getAllClaims,
 };

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 /**
- * Authentication Middleware:
+ * Authentication Middleware for Auth Service:
  * Verifies JWT token from Authorization header (Bearer <token>)
  * Attaches decoded user payload ({ id, name, email, role }) to req.user.
  */
@@ -23,8 +23,10 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
+    const decoded = jwt.verify(token, secret);
     req.user = decoded;
+    req.authToken = token; // Store raw token for request context / forwarding if needed
     next();
   } catch (error) {
     return res.status(401).json({
@@ -35,14 +37,14 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * Authorization Middleware:
- * Checks if the authenticated user has one of the allowed roles.
- * Must be used after `protect` middleware.
+ * Authorization Middleware for Auth Service:
+ * Verifies that the authenticated user has one of the required roles.
+ * Must be mounted after the `protect` middleware.
  *
  * @param {...string} roles - Allowed roles (e.g. 'admin', 'user')
  */
 const authorize = (...roles) => {
-  const allowedRoles = roles.flat();
+  const allowedRoles = roles.flat(); 
 
   return (req, res, next) => {
     // Safely handle missing req.user (e.g. if protect was omitted)

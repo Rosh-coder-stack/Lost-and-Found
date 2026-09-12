@@ -36,4 +36,35 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+/**
+ * Authorization Middleware for Claim Service:
+ * Verifies that the authenticated user has one of the required roles.
+ * Must be mounted after the `protect` middleware.
+ *
+ * @param {...string} roles - Allowed roles (e.g. 'admin', 'user')
+ */
+const authorize = (...roles) => {
+  const allowedRoles = roles.flat();
+
+  return (req, res, next) => {
+    // Safely handle missing req.user (e.g. if protect was omitted)
+    if (!req.user) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Access denied. User authentication required.',
+      });
+    }
+
+    // Check if user has one of the allowed roles
+    if (!req.user.role || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: User role '${req.user.role || 'unknown'}' is not authorized to access this resource.`,
+      });
+    }
+
+    next();
+  };
+};
+
+module.exports = { protect, authorize };
