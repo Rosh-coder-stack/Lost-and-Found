@@ -2,7 +2,24 @@
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware'); // helps in forwarding requests to different services from the API Gateway
 const config = require('../config');
+const { createRateLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
+
+// 1. Normal API Rate Limiter (20 requests per minute per client IP)
+const apiRateLimiter = createRateLimiter({
+  keyPrefix: 'rate-limit:',
+  maxRequests: 20,
+  windowSeconds: 60,
+  message: 'Too many requests. Please try again later.',
+});
+
+// 2. Strict Login Rate Limiter (4 login attempts per 5 minutes per client IP)
+const loginRateLimiter = createRateLimiter({
+  keyPrefix: 'login-rate-limit:',
+  maxRequests: 4,
+  windowSeconds: 300,
+  message: 'Too many login attempts. Please try again later.',
+});
 
 /**
  * Auth Service Proxy
@@ -79,6 +96,12 @@ const claimProxy = createProxyMiddleware({
     },
   },
 });
+
+// Apply Normal API Rate Limiting to all /api/v1 routes passing through the gateway
+router.use('/api/v1', apiRateLimiter);
+
+// Apply Stricter Login Rate Limiting specifically to the login endpoint
+router.post('/api/v1/auth/login', loginRateLimiter);
 
 // Mount the proxy middleware onto the router
 router.use('/api/v1/auth', authProxy);

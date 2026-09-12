@@ -16,6 +16,9 @@ const config = {
 
   // Target base URL for the Claim microservice
   claimServiceUrl: process.env.CLAIM_SERVICE_URL || 'http://localhost:5003',
+
+  // Redis URL for distributed rate limiting
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
 };
 
 module.exports = config;
