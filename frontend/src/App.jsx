@@ -1,0 +1,438 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import Navbar from './components/Navbar.jsx';
+import Footer from './components/Footer.jsx';
+import ReportModal from './components/ReportModal.jsx';
+import BrowseModal from './components/BrowseModal.jsx';
+import ItemDetailsModal from './components/ItemDetailsModal.jsx';
+import SuccessStoriesModal from './components/SuccessStoriesModal.jsx';
+
+import LandingPage from './pages/LandingPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import SignupPage from './pages/SignupPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
+import OAuthSuccessPage from './pages/OAuthSuccessPage.jsx';
+
+import { SUGGESTED_ITEMS } from './data/mockData.js';
+import { getMyReports, getAllItems, deleteItemReport } from './services/itemService.js';
+import {
+  getMyClaims,
+  getIncomingClaimRequests,
+  acceptClaim,
+  rejectClaim,
+  askFollowUpProof,
+  replyFollowUpProof,
+  resubmitClaim,
+} from './services/claimService.js';
+
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState('landing');
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // Auto-detect reset password token or OAuth callback in URL on load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pathname = window.location.pathname;
+
+    if (
+      pathname.includes('oauth-success') ||
+      (urlParams.has('token') && !urlParams.has('resetToken') && !pathname.includes('reset-password'))
+    ) {
+      setCurrentScreen('oauth-success');
+    } else if (urlParams.has('token') || pathname.includes('reset-password')) {
+      setCurrentScreen('reset-password');
+    }
+  }, []);
+
+  // Data states
+  const [userReports, setUserReports] = useState([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
+  const [suggestedItems] = useState(SUGGESTED_ITEMS);
+  const [globalItems, setGlobalItems] = useState([]);
+
+  // Claims Data states
+  const [incomingClaims, setIncomingClaims] = useState([]);
+  const [myClaims, setMyClaims] = useState([]);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(false);
+
+  // Modal states
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
+  const [reportInitialType, setReportInitialType] = useState(null);
+  const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
+  const [isStoriesModalOpen, setIsStoriesModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Toast Notification
+  const [toastMsg, setToastMsg] = useState(null);
+
+  const showToast = (message) => {
+    setToastMsg(message);
+    setTimeout(() => {
+      setToastMsg(null);
+    }, 3500);
+  };
+
+  const handleNavigate = (screen) => {
+    setCurrentScreen(screen);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Fetch reports for currently logged-in user
+  const fetchUserReports = useCallback(async () => {
+    if (!user) return;
+    try {
+      setIsLoadingReports(true);
+      const response = await getMyReports();
+      if (response && response.data) {
+        setUserReports(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching user reports:', error);
+    } finally {
+      setIsLoadingReports(false);
+    }
+  }, [user]);
+
+  // Fetch public global items
+  const fetchGlobalItems = useCallback(async () => {
+    try {
+      const response = await getAllItems();
+      if (response && response.data) {
+        setGlobalItems(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching global items:', error);
+    }
+  }, []);
+
+  // Fetch user claims (both incoming requests and my submitted claims)
+  const fetchUserClaims = useCallback(async () => {
+    if (!user) return;
+    try {
+      setIsLoadingClaims(true);
+      const [incomingRes, myRes] = await Promise.allSettled([
+        getIncomingClaimRequests(),
+        getMyClaims(),
+      ]);
+
+      if (incomingRes.status === 'fulfilled' && incomingRes.value?.data) {
+        setIncomingClaims(incomingRes.value.data);
+      }
+      if (myRes.status === 'fulfilled' && myRes.value?.data) {
+        setMyClaims(myRes.value.data);
+      }
+    } catch (error) {
+      console.warn('Error fetching claims:', error.message);
+    } finally {
+      setIsLoadingClaims(false);
+    }
+  }, [user]);
+
+  // Fetch reports and claims when user logs in or switches to dashboard
+  useEffect(() => {
+    if (user && currentScreen === 'dashboard') {
+      fetchUserReports();
+      fetchGlobalItems();
+      fetchUserClaims();
+    }
+  }, [user, currentScreen, fetchUserReports, fetchGlobalItems, fetchUserClaims]);
+
+  // Handler for opening Report Modal in Create Mode
+  const handleOpenCreateReport = (initialType = null) => {
+    if (!user) {
+      handleNavigate('login');
+      return;
+    }
+    setReportInitialType(initialType);
+    setEditingReport(null);
+    setIsReportModalOpen(true);
+  };
+
+  // Handler for opening Report Modal in Edit Mode
+  const handleOpenEditReport = (report) => {
+    if (!user) {
+      handleNavigate('login');
+      return;
+    }
+    setReportInitialType(report?.type || null);
+    setEditingReport(report);
+    setIsReportModalOpen(true);
+  };
+
+  // Handler after successful Create or Edit in ReportModal
+  const handleReportSubmitSuccess = (savedItem, actionType) => {
+    const itemId = savedItem._id || savedItem.id;
+    const isFound = savedItem.type === 'found';
+
+    if (actionType === 'updated') {
+      setUserReports((prev) =>
+        prev.map((r) => ((r._id || r.id) === itemId ? savedItem : r))
+      );
+      setGlobalItems((prev) =>
+        prev.map((r) => ((r._id || r.id) === itemId ? savedItem : r))
+      );
+      showToast(`${isFound ? 'Found' : 'Lost'} report for "${savedItem.title}" updated successfully`);
+    } else {
+      setUserReports((prev) => [savedItem, ...prev]);
+      setGlobalItems((prev) => [savedItem, ...prev]);
+      showToast(`${isFound ? 'Found' : 'Lost'} item report published for "${savedItem.title}"`);
+      handleNavigate('dashboard');
+    }
+
+    fetchUserReports();
+    fetchGlobalItems();
+    fetchUserClaims();
+  };
+
+  // Handler for Deleting a Report
+  const handleDeleteReport = async (report) => {
+    const itemId = report._id || report.id;
+    try {
+      await deleteItemReport(itemId);
+
+      setUserReports((prev) => prev.filter((r) => (r._id || r.id) !== itemId));
+      setGlobalItems((prev) => prev.filter((r) => (r._id || r.id) !== itemId));
+
+      if (selectedItem && (selectedItem._id || selectedItem.id) === itemId) {
+        setSelectedItem(null);
+      }
+
+      showToast(`Report "${report.title}" removed successfully.`);
+
+      fetchUserReports();
+      fetchGlobalItems();
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to delete report.');
+      throw err;
+    }
+  };
+
+  // Handler after submitting claim from modal
+  const handleClaimSubmitted = (claimData) => {
+    showToast('Ownership claim verification request submitted successfully!');
+    fetchUserClaims();
+  };
+
+  // Claim actions handlers
+  const handleAcceptClaim = async (claimId, note) => {
+    try {
+      await acceptClaim(claimId, note);
+      showToast('Claim accepted! Contact information shared.');
+      fetchUserClaims();
+      fetchUserReports();
+      fetchGlobalItems();
+    } catch (err) {
+      showToast(err.message || 'Failed to accept claim.');
+      throw err;
+    }
+  };
+
+  const handleRejectClaim = async (claimId, reason) => {
+    try {
+      await rejectClaim(claimId, reason);
+      showToast('Claim rejected.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to reject claim.');
+      throw err;
+    }
+  };
+
+  const handleAskProof = async (claimId, question) => {
+    try {
+      await askFollowUpProof(claimId, question);
+      showToast('Follow-up proof request sent to claimant.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to request proof.');
+      throw err;
+    }
+  };
+
+  const handleReplyProof = async (claimId, reply) => {
+    try {
+      await replyFollowUpProof(claimId, reply);
+      showToast('Response sent to the reporter.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to send response.');
+      throw err;
+    }
+  };
+
+  const handleResubmitClaim = async (claimId, data) => {
+    try {
+      await resubmitClaim(claimId, data);
+      showToast('Final claim attempt submitted successfully.');
+      fetchUserClaims();
+    } catch (err) {
+      showToast(err.message || 'Failed to submit final attempt.');
+      throw err;
+    }
+  };
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    showToast(`Welcome back, ${userData.name}!`);
+    handleNavigate('dashboard');
+  };
+
+  const handleSignUpSuccess = (userData) => {
+    setUser(userData);
+    showToast(`Account created for ${userData.name}!`);
+    handleNavigate('dashboard');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUserReports([]);
+    setIncomingClaims([]);
+    setMyClaims([]);
+    showToast('Logged out successfully.');
+    handleNavigate('landing');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#09090B] text-[#e5e1e4] flex flex-col font-['Inter',sans-serif] selection:bg-[#7C3AED] selection:text-white">
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div className="fixed top-24 right-6 z-50 bg-[#7C3AED] text-white font-bold px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 animate-in slide-in-from-top duration-300">
+          <span className="material-symbols-outlined text-lg">check_circle</span>
+          <span className="text-sm">{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Top Fixed Navbar */}
+      <Navbar
+        currentScreen={currentScreen}
+        onNavigate={handleNavigate}
+        user={user}
+        onLogout={handleLogout}
+        onOpenReport={handleOpenCreateReport}
+      />
+
+      {/* Main Screen Body */}
+      <div className="flex-1">
+        {currentScreen === 'landing' && (
+          <LandingPage
+            onNavigate={handleNavigate}
+            user={user}
+            onOpenReport={handleOpenCreateReport}
+            onOpenBrowse={() => setIsBrowseModalOpen(true)}
+          />
+        )}
+
+        {currentScreen === 'dashboard' && (
+          <DashboardPage
+            user={user}
+            userReports={userReports}
+            isLoadingReports={isLoadingReports}
+            incomingClaims={incomingClaims}
+            myClaims={myClaims}
+            isLoadingClaims={isLoadingClaims}
+            suggestedItems={suggestedItems}
+            onOpenReport={handleOpenCreateReport}
+            onOpenBrowse={() => setIsBrowseModalOpen(true)}
+            onSelectItem={(item) => setSelectedItem(item)}
+            onOpenStories={() => setIsStoriesModalOpen(true)}
+            onEditReport={handleOpenEditReport}
+            onDeleteReport={handleDeleteReport}
+            onAcceptClaim={handleAcceptClaim}
+            onRejectClaim={handleRejectClaim}
+            onAskProof={handleAskProof}
+            onReplyProof={handleReplyProof}
+            onResubmitClaim={handleResubmitClaim}
+          />
+        )}
+
+        {currentScreen === 'signup' && (
+          <SignupPage
+            onNavigate={handleNavigate}
+            onSignUpSuccess={handleSignUpSuccess}
+          />
+        )}
+
+        {currentScreen === 'login' && (
+          <LoginPage
+            onNavigate={handleNavigate}
+            onLoginSuccess={handleLoginSuccess}
+          />
+        )}
+
+        {currentScreen === 'forgot-password' && (
+          <ForgotPasswordPage
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {currentScreen === 'reset-password' && (
+          <ResetPasswordPage
+            onNavigate={handleNavigate}
+            showToast={showToast}
+          />
+        )}
+
+        {currentScreen === 'oauth-success' && (
+          <OAuthSuccessPage
+            onNavigate={handleNavigate}
+            onLoginSuccess={handleLoginSuccess}
+          />
+        )}
+      </div>
+
+      {/* Global Footer */}
+      {(currentScreen === 'landing' || currentScreen === 'dashboard') && (
+        <Footer onNavigate={handleNavigate} />
+      )}
+
+      {/* Modals */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        editingItem={editingReport}
+        initialType={reportInitialType}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setEditingReport(null);
+          setReportInitialType(null);
+        }}
+        onSubmitSuccess={handleReportSubmitSuccess}
+      />
+
+      <BrowseModal
+        isOpen={isBrowseModalOpen}
+        onClose={() => setIsBrowseModalOpen(false)}
+        items={globalItems}
+        onSelectItem={(item) => {
+          setIsBrowseModalOpen(false);
+          setSelectedItem(item);
+        }}
+      />
+
+      <ItemDetailsModal
+        item={selectedItem}
+        currentUser={user}
+        onClose={() => setSelectedItem(null)}
+        onClaimSubmitted={handleClaimSubmitted}
+        onEditItem={handleOpenEditReport}
+        onDeleteItem={handleDeleteReport}
+      />
+
+      <SuccessStoriesModal
+        isOpen={isStoriesModalOpen}
+        onClose={() => setIsStoriesModalOpen(false)}
+      />
+    </div>
+  );
+}
